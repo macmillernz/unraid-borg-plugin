@@ -1,0 +1,129 @@
+Menu="Borg"
+Title="Containers"
+Tag="docker"
+---
+<?php
+/* Borg Backup - pick which containers are backed up and which of their mounts. */
+require_once '/usr/local/emhttp/plugins/borgbackup/include/BorgLib.php';
+
+$s      = borg_settings();
+$mode   = $s['CONTAINER_MODE'] ?? 'all';
+$ccfg   = borg_container_config();
+$all    = borg_list_containers();
+$csrf   = $var['csrf_token'] ?? '';
+?>
+<link  rel="stylesheet" href="/plugins/borgbackup/images/borg.css">
+<script src="/plugins/borgbackup/images/borg.js"></script>
+<script>const BORG_CSRF = <?=json_encode($csrf)?>;</script>
+
+<?php if (!borg_docker_running()): ?>
+  <div class="borg-status warn">
+    <span class="borg-dot warn"></span>
+    The Docker service is not running, so no containers can be listed.
+    Start it under <em>Settings &rarr; Docker</em>, then reload this page.
+  </div>
+<?php elseif (!$all): ?>
+  <div class="borg-status warn">
+    <span class="borg-dot warn"></span>No containers found on this server.
+  </div>
+<?php else: ?>
+
+<div class="borg-status <?=$mode === 'selected' ? 'info' : 'ok'?>">
+  <span class="borg-dot <?=$mode === 'selected' ? 'info' : 'ok'?>"></span>
+  <?php if ($mode === 'selected'): ?>
+    Mode: <strong>only selected containers</strong>. Tick a container to include it.
+  <?php else: ?>
+    Mode: <strong>all containers</strong>. Everything is included unless you untick it.
+  <?php endif; ?>
+  Change this on the <a href="/Utilities/Borg">Settings</a> tab.
+</div>
+
+<div class="borg-toolbar">
+  <button type="button" id="borg-all-on">Select all containers</button>
+  <button type="button" id="borg-all-off">Deselect all</button>
+  <button type="button" id="borg-expand">Expand all</button>
+  <button type="button" id="borg-collapse">Collapse all</button>
+</div>
+
+<form id="borg-containers" onsubmit="return false;">
+<?php foreach ($all as $name => $c):
+    $sel      = $ccfg['containers'][$name] ?? null;
+    $enabled  = $sel ? !empty($sel['enabled']) : ($mode !== 'selected');
+    // No stored 'mounts' key means "all mounts, including any added later".
+    $custom   = $sel && array_key_exists('mounts', $sel) && is_array($sel['mounts']);
+    $chosen   = $custom ? $sel['mounts'] : array_column($c['mounts'], 'src');
+    $stop     = array_key_exists('stop', (array)$sel) ? ($sel['stop'] ? 'yes' : 'no') : 'default';
+    $nMounts  = count($c['mounts']);
+    $nChosen  = count(array_intersect(array_column($c['mounts'], 'src'), $chosen));
+?>
+  <div class="borg-container<?=$nMounts ? '' : ' borg-nomounts'?>" data-name="<?=borg_h($name)?>">
+    <div class="borg-chead">
+      <label class="borg-cname">
+        <input type="checkbox" class="borg-c-enabled"<?=$enabled && $nMounts ? ' checked' : ''?>
+               <?=$nMounts ? '' : 'disabled'?>>
+        <strong><?=borg_h($name)?></strong>
+      </label>
+      <span class="borg-badge borg-<?=borg_h($c['state'])?>"><?=borg_h($c['state'])?></span>
+      <span class="borg-image"><?=borg_h($c['image'])?></span>
+      <span class="borg-count">
+        <?php if (!$nMounts): ?>
+          no bind mounts to back up
+        <?php else: ?>
+          <span class="borg-n"><?=$nChosen?></span> of <?=$nMounts?> mount<?=$nMounts==1?'':'s'?>
+          <?php if (!$custom): ?><span class="borg-auto" title="New mounts added to this container will be included automatically">auto</span><?php endif; ?>
+        <?php endif; ?>
+      </span>
+      <?php if ($nMounts): ?><button type="button" class="borg-toggle" aria-expanded="false">Mounts</button><?php endif; ?>
+    </div>
+
+    <?php if ($nMounts): ?>
+    <div class="borg-cbody" hidden>
+      <table class="borg-mounts">
+        <thead><tr><th></th><th>Host path (what gets archived)</th><th>Mounted in container as</th><th>Access</th></tr></thead>
+        <tbody>
+        <?php foreach ($c['mounts'] as $m): ?>
+          <tr>
+            <td><input type="checkbox" class="borg-mount" value="<?=borg_h($m['src'])?>"
+                       <?=in_array($m['src'], $chosen, true) ? 'checked' : ''?>></td>
+            <td><code><?=borg_h($m['src'])?></code></td>
+            <td><code class="borg-dst"><?=borg_h($m['dst'])?></code></td>
+            <td><?=$m['rw'] ? 'read-write' : 'read-only'?></td>
+          </tr>
+        <?php endforeach; ?>
+        </tbody>
+      </table>
+
+      <dl class="borg-copts">
+        <dt>Stop while archiving:</dt>
+        <dd>
+          <select class="borg-c-stop">
+            <option value="default"<?=$stop==='default'?' selected':''?>>Use the global default</option>
+            <option value="yes"<?=$stop==='yes'?' selected':''?>>Yes</option>
+            <option value="no"<?=$stop==='no'?' selected':''?>>No</option>
+          </select>
+        </dd>
+        <dt>Excludes for this container:</dt>
+        <dd><textarea class="borg-c-excludes" rows="3" placeholder="*/cache/*"><?=borg_h($sel['excludes'] ?? '')?></textarea></dd>
+      </dl>
+    </div>
+    <?php endif; ?>
+  </div>
+<?php endforeach; ?>
+</form>
+
+<blockquote class="inline_help">
+Only <strong>bind mounts</strong> are listed &mdash; those are the ones with a real path on
+this server. Named Docker volumes and passthrough paths such as <code>/dev</code> and
+<code>/var/run</code> are left out because they are not useful to archive.<br>
+A container showing <span class="borg-auto">auto</span> has every mount selected and will
+also pick up any mount you add to it later. Untick even one mount and the selection
+becomes fixed, so re-check this page after changing a container's volume mappings.
+</blockquote>
+
+<div class="borg-buttons">
+  <button type="button" id="borg-save-containers" class="borg-primary">Apply</button>
+  <button type="button" id="borg-preview">Preview what will be backed up</button>
+</div>
+
+<pre id="borg-output" class="borg-output" hidden></pre>
+<?php endif; ?>

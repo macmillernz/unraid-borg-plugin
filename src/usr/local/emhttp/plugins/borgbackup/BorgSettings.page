@@ -1,0 +1,321 @@
+Menu="Borg"
+Title="Settings"
+Tag="cog"
+---
+<?php
+/* Borg Backup - repository, archive naming, schedule and retention settings. */
+require_once '/usr/local/emhttp/plugins/borgbackup/include/BorgLib.php';
+
+$s        = borg_settings();
+$excludes = borg_excludes();
+$hasPass  = borg_passphrase_is_set();
+$bin      = borg_binary();
+$ver      = borg_version();
+$state    = borg_state();
+$csrf     = $var['csrf_token'] ?? '';
+
+function sel($a, $b) { return (string)$a === (string)$b ? ' selected' : ''; }
+function chk($v)     { return $v ? ' checked' : ''; }
+?>
+<link  rel="stylesheet" href="/plugins/borgbackup/images/borg.css">
+<script src="/plugins/borgbackup/images/borg.js"></script>
+<script>const BORG_CSRF = <?=json_encode($csrf)?>;</script>
+
+<div class="borg-status <?=$bin ? 'ok' : 'warn'?>">
+<?php if ($bin): ?>
+  <span class="borg-dot ok"></span><strong><?=borg_h($ver ?: 'borg installed')?></strong>
+  &nbsp;&mdash;&nbsp; <?=borg_h($bin)?>
+<?php else: ?>
+  <span class="borg-dot warn"></span><strong>Borg is not installed yet.</strong>
+  Use <em>Install / update borg</em> at the bottom of this page before your first backup.
+<?php endif; ?>
+<?php if ($state['LAST_RUN']): ?>
+  <div class="borg-last">Last run: <?=borg_h($state['LAST_RUN'])?> &mdash;
+    <span class="borg-result <?=borg_h($state['LAST_RESULT'])?>"><?=borg_h($state['LAST_RESULT'])?></span>,
+    <?=borg_h($state['LAST_ARCHIVES'])?> archive(s) in <?=borg_h($state['LAST_DURATION'])?>s
+    <?php if ($state['LAST_ERROR']): ?><br><span class="borg-err"><?=borg_h($state['LAST_ERROR'])?></span><?php endif; ?>
+  </div>
+<?php endif; ?>
+</div>
+
+<form id="borg-settings" onsubmit="return false;">
+
+<div class="title"><span class="left">Repository</span></div>
+<dl>
+  <dt>Repository location:</dt>
+  <dd><input type="text" name="REPO" style="width:32em"
+             value="<?=borg_h($s['REPO'])?>"
+             placeholder="/mnt/user/backups/borg  or  ssh://user@host:22/./repo"></dd>
+</dl>
+<blockquote class="inline_help">
+Where archives are stored. A local path (<code>/mnt/user/backups/borg</code>) or a
+remote repository over SSH (<code>ssh://user@host:22/./path/to/repo</code>).
+<strong>Do not point this at a share you are also backing up</strong> &mdash; back the
+repository up off this server as well; a copy on the same array does not survive
+losing the array.
+</blockquote>
+
+<dl>
+  <dt>SSH key (remote only):</dt>
+  <dd><input type="text" name="SSH_KEY" style="width:32em"
+             value="<?=borg_h($s['SSH_KEY'])?>"
+             placeholder="/boot/config/plugins/borgbackup/id_ed25519"></dd>
+</dl>
+<blockquote class="inline_help">
+Private key used for <code>ssh://</code> repositories. Leave blank for local repositories.
+The key must have no passphrase, because backups run unattended from cron.
+</blockquote>
+
+<div class="title"><span class="left">Encryption</span></div>
+<dl>
+  <dt>Passphrase source:</dt>
+  <dd>
+    <select name="PASSPHRASE_MODE" id="borg-pass-mode">
+      <option value="stored"<?=sel($s['PASSPHRASE_MODE'],'stored')?>>Store on the flash drive</option>
+      <option value="file"<?=sel($s['PASSPHRASE_MODE'],'file')?>>Read from a file I specify</option>
+    </select>
+  </dd>
+</dl>
+<blockquote class="inline_help">
+The flash drive is <code>vfat</code>: it cannot enforce file permissions, so a stored
+passphrase is readable by anything that can read the flash. For anything sensitive,
+keep the passphrase in a file on the array instead and lock it down with
+<code>chmod 600</code>.
+</blockquote>
+
+<dl class="borg-when-stored">
+  <dt>Passphrase:</dt>
+  <dd>
+    <input type="password" name="PASSPHRASE" id="borg-pass" autocomplete="new-password"
+           placeholder="<?=$hasPass ? 'unchanged - leave blank to keep' : 'not set'?>">
+    <label class="borg-inline"><input type="checkbox" id="borg-pass-show"> show</label>
+  </dd>
+</dl>
+<dl class="borg-when-stored">
+  <dt>Confirm passphrase:</dt>
+  <dd><input type="password" name="PASSPHRASE2" id="borg-pass2" autocomplete="new-password"></dd>
+</dl>
+
+<dl class="borg-when-file">
+  <dt>Passphrase file:</dt>
+  <dd><input type="text" name="PASSPHRASE_FILE" style="width:32em"
+             value="<?=borg_h($s['PASSPHRASE_FILE'])?>"
+             placeholder="/mnt/user/secure/borg-passphrase"></dd>
+</dl>
+
+<dl>
+  <dt>Encryption mode:</dt>
+  <dd>
+    <select name="ENCRYPTION">
+      <?php foreach (['repokey-blake2'=>'repokey-blake2 (recommended)',
+                      'repokey'       =>'repokey',
+                      'keyfile-blake2'=>'keyfile-blake2',
+                      'keyfile'       =>'keyfile',
+                      'none'          =>'none (no encryption)'] as $k=>$label): ?>
+        <option value="<?=$k?>"<?=sel($s['ENCRYPTION'],$k)?>><?=$label?></option>
+      <?php endforeach; ?>
+    </select>
+  </dd>
+</dl>
+<blockquote class="inline_help">
+Used only when <em>Initialise repository</em> creates a new repository. An existing
+repository keeps whatever mode it was created with; changing this later has no effect.
+<code>repokey</code> modes keep the key inside the repository, so the passphrase is all
+you need to restore. <code>keyfile</code> modes also require
+<code>/root/.config/borg/keys</code> &mdash; back that up separately or you cannot restore.
+</blockquote>
+
+<div class="title"><span class="left">Archives</span></div>
+<dl>
+  <dt>Archive naming format:</dt>
+  <dd><input type="text" name="ARCHIVE_FORMAT" id="borg-format" style="width:32em"
+             value="<?=borg_h($s['ARCHIVE_FORMAT'])?>"></dd>
+</dl>
+<dl>
+  <dt>Example name:</dt>
+  <dd><code id="borg-format-preview" class="borg-preview"></code></dd>
+</dl>
+<blockquote class="inline_help">
+Placeholders: <code>{container}</code> (this plugin), and borg's own
+<code>{now}</code>, <code>{utcnow}</code>, <code>{hostname}</code>, <code>{fqdn}</code>,
+<code>{user}</code>. Dates take a strftime format, e.g.
+<code>{now:%Y-%m-%d_%H%M%S}</code>.<br>
+Keep <code>{container}</code> at the start and a timestamp somewhere: retention prunes
+each container independently by matching this pattern, so archives from different
+containers must not collide.
+</blockquote>
+
+<dl>
+  <dt>Compression:</dt>
+  <dd>
+    <select name="COMPRESSION">
+      <?php foreach (['zstd,3'=>'zstd level 3 (recommended)',
+                      'zstd,1'=>'zstd level 1 (fastest)',
+                      'zstd,8'=>'zstd level 8 (smaller, slower)',
+                      'lz4'   =>'lz4 (very fast, least compression)',
+                      'none'  =>'none'] as $k=>$label): ?>
+        <option value="<?=$k?>"<?=sel($s['COMPRESSION'],$k)?>><?=$label?></option>
+      <?php endforeach; ?>
+    </select>
+  </dd>
+</dl>
+
+<dl>
+  <dt>Global exclude patterns:</dt>
+  <dd><textarea name="EXCLUDES" rows="5" style="width:32em"
+                placeholder="*/cache/*&#10;*.tmp&#10;*/Transcode/*"><?=borg_h($excludes)?></textarea></dd>
+</dl>
+<blockquote class="inline_help">
+One borg exclude pattern per line, applied to every container. Lines starting with
+<code>#</code> are ignored. Per-container excludes are set on the <em>Containers</em> tab.
+</blockquote>
+
+<div class="title"><span class="left">Containers</span></div>
+<dl>
+  <dt>Back up:</dt>
+  <dd>
+    <select name="CONTAINER_MODE">
+      <option value="all"<?=sel($s['CONTAINER_MODE'],'all')?>>All containers</option>
+      <option value="selected"<?=sel($s['CONTAINER_MODE'],'selected')?>>Only the containers I select</option>
+    </select>
+  </dd>
+</dl>
+<blockquote class="inline_help">
+Choose which containers are included, and which of each container's mounts are
+archived, on the <a href="/Utilities/Borg">Containers</a> tab.
+In <em>All containers</em> mode every container's bind mounts are archived unless you
+have deselected them there.
+</blockquote>
+
+<dl>
+  <dt>Stop containers while archiving:</dt>
+  <dd>
+    <select name="STOP_CONTAINERS">
+      <option value="no"<?=sel($s['STOP_CONTAINERS'],'no')?>>No - archive them running</option>
+      <option value="yes"<?=sel($s['STOP_CONTAINERS'],'yes')?>>Yes - stop, archive, restart</option>
+    </select>
+  </dd>
+</dl>
+<blockquote class="inline_help">
+The default for every container; individual containers can override it. Stopping gives
+a consistent archive and matters most for databases, whose files can be captured
+mid-write otherwise. Each container is restarted as soon as its own archive finishes,
+not at the end of the whole run.
+</blockquote>
+
+<dl>
+  <dt>Stop timeout (seconds):</dt>
+  <dd><input type="number" name="STOP_TIMEOUT" min="5" max="600" value="<?=borg_h($s['STOP_TIMEOUT'])?>"></dd>
+</dl>
+
+<div class="title"><span class="left">Retention</span></div>
+<dl>
+  <dt>Prune old archives:</dt>
+  <dd>
+    <select name="PRUNE_ENABLED">
+      <option value="yes"<?=sel($s['PRUNE_ENABLED'],'yes')?>>Yes</option>
+      <option value="no"<?=sel($s['PRUNE_ENABLED'],'no')?>>No - keep everything</option>
+    </select>
+  </dd>
+</dl>
+<dl>
+  <dt>Keep archives:</dt>
+  <dd class="borg-keep">
+    <label>daily <input type="number" name="KEEP_DAILY"   min="0" max="9999" value="<?=borg_h($s['KEEP_DAILY'])?>"></label>
+    <label>weekly <input type="number" name="KEEP_WEEKLY"  min="0" max="9999" value="<?=borg_h($s['KEEP_WEEKLY'])?>"></label>
+    <label>monthly <input type="number" name="KEEP_MONTHLY" min="0" max="9999" value="<?=borg_h($s['KEEP_MONTHLY'])?>"></label>
+    <label>yearly <input type="number" name="KEEP_YEARLY"  min="0" max="9999" value="<?=borg_h($s['KEEP_YEARLY'])?>"></label>
+  </dd>
+</dl>
+<blockquote class="inline_help">
+Retention is applied per container. <code>0</code> disables that rule; if all four are
+<code>0</code> pruning is skipped entirely rather than deleting every archive.
+</blockquote>
+
+<dl>
+  <dt>Compact after pruning:</dt>
+  <dd>
+    <select name="COMPACT">
+      <option value="yes"<?=sel($s['COMPACT'],'yes')?>>Yes - reclaim disk space</option>
+      <option value="no"<?=sel($s['COMPACT'],'no')?>>No</option>
+    </select>
+  </dd>
+</dl>
+
+<div class="title"><span class="left">Schedule</span></div>
+<dl>
+  <dt>Run backups:</dt>
+  <dd>
+    <select name="SCHEDULE" id="borg-schedule">
+      <?php foreach (['disabled'=>'Manually only','hourly'=>'Hourly','daily'=>'Daily',
+                      'weekly'=>'Weekly','monthly'=>'Monthly','custom'=>'Custom cron'] as $k=>$label): ?>
+        <option value="<?=$k?>"<?=sel($s['SCHEDULE'],$k)?>><?=$label?></option>
+      <?php endforeach; ?>
+    </select>
+  </dd>
+</dl>
+<dl class="borg-sched borg-sched-weekly">
+  <dt>Day of week:</dt>
+  <dd><select name="WEEKDAY">
+    <?php foreach (['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'] as $i=>$d): ?>
+      <option value="<?=$i?>"<?=sel($s['WEEKDAY'],$i)?>><?=$d?></option>
+    <?php endforeach; ?>
+  </select></dd>
+</dl>
+<dl class="borg-sched borg-sched-monthly">
+  <dt>Day of month:</dt>
+  <dd><input type="number" name="MONTHDAY" min="1" max="28" value="<?=borg_h($s['MONTHDAY'])?>"></dd>
+</dl>
+<dl class="borg-sched borg-sched-hour">
+  <dt>Hour:</dt>
+  <dd><input type="number" name="HOUR" min="0" max="23" value="<?=borg_h($s['HOUR'])?>"></dd>
+</dl>
+<dl class="borg-sched borg-sched-minute">
+  <dt>Minute:</dt>
+  <dd><input type="number" name="MINUTE" min="0" max="59" value="<?=borg_h($s['MINUTE'])?>"></dd>
+</dl>
+<dl class="borg-sched borg-sched-custom">
+  <dt>Cron expression:</dt>
+  <dd><input type="text" name="CRON" style="width:16em" value="<?=borg_h($s['CRON'])?>"
+             placeholder="0 3 * * *"></dd>
+</dl>
+<blockquote class="inline_help">
+Current schedule: <strong id="borg-schedule-text"><?=borg_h(borg_schedule_text($s))?></strong>.
+A run that is still going when the next one is due is skipped rather than run twice.
+</blockquote>
+
+<div class="title"><span class="left">Notifications</span></div>
+<dl>
+  <dt>Notify via Unraid:</dt>
+  <dd>
+    <select name="NOTIFY">
+      <option value="none"<?=sel($s['NOTIFY'],'none')?>>Never</option>
+      <option value="failure"<?=sel($s['NOTIFY'],'failure')?>>On failures and warnings</option>
+      <option value="all"<?=sel($s['NOTIFY'],'all')?>>On every run</option>
+    </select>
+  </dd>
+</dl>
+<dl>
+  <dt>Log detail:</dt>
+  <dd>
+    <select name="LOG_LEVEL">
+      <option value="info"<?=sel($s['LOG_LEVEL'],'info')?>>Normal</option>
+      <option value="debug"<?=sel($s['LOG_LEVEL'],'debug')?>>Debug (verbose)</option>
+    </select>
+  </dd>
+</dl>
+
+<dl>
+  <dt>&nbsp;</dt>
+  <dd class="borg-buttons">
+    <button type="button" id="borg-save" class="borg-primary">Apply</button>
+    <button type="button" id="borg-test">Test repository</button>
+    <button type="button" id="borg-init">Initialise repository</button>
+    <button type="button" id="borg-install">Install / update borg</button>
+    <button type="button" id="borg-dry">Dry run</button>
+    <button type="button" id="borg-run">Run backup now</button>
+  </dd>
+</dl>
+</form>
+
+<pre id="borg-output" class="borg-output" hidden></pre>

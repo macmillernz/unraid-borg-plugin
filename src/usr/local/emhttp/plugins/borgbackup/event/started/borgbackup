@@ -1,0 +1,11 @@
+#!/bin/bash
+# Unraid fires this once the array is started. /usr/local/bin lives on tmpfs,
+# so restore the borg binary from flash and (re)write the cron entry.
+PLUGIN=borgbackup
+BOOT=/boot/config/plugins/$PLUGIN
+
+if [[ -f $BOOT/borg && ! -x /usr/local/bin/borg ]]; then
+  install -D -m 0755 "$BOOT/borg" /usr/local/bin/borg
+fi
+
+/usr/local/emhttp/plugins/$PLUGIN/scripts/borg-cron.sh >/dev/null 2>&1

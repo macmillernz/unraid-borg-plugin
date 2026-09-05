@@ -1,0 +1,99 @@
+<?xml version='1.0' standalone='yes'?>
+<!DOCTYPE PLUGIN [
+<!ENTITY name      "borgbackup">
+<!ENTITY author    "glennm">
+<!ENTITY version   "2026.09.05">
+<!ENTITY launch    "Utilities/Borg">
+<!ENTITY plugdir   "/usr/local/emhttp/plugins/&name;">
+<!ENTITY boot      "/boot/config/plugins/&name;">
+<!-- The account hosting this repo; the plugin fetches its own updates from here. -->
+<!ENTITY gitURL    "https://raw.githubusercontent.com/macmillernz/unraid-borg-plugin/main">
+<!ENTITY pluginURL "&gitURL;/plugin/&name;.plg">
+<!ENTITY txz       "&name;-&version;.txz">
+<!ENTITY md5       "e5376fa4b00f3b7ab43dab11b5ba216b">
+]>
+
+<PLUGIN name="&name;"
+        author="&author;"
+        version="&version;"
+        launch="&launch;"
+        pluginURL="&pluginURL;"
+        min="6.12.0"
+        icon="archive"
+        support="https://github.com/macmillernz/unraid-borg-plugin/issues">
+
+<CHANGES>
+###&version;
+- Initial release: BorgBackup for Docker containers with per-container mount selection.
+</CHANGES>
+
+<!-- Refuse to install on a release whose PHP is too old for the plugin's code. -->
+<FILE Run="/bin/bash">
+<INLINE>
+if [ ! -f /etc/unraid-version ]; then
+  echo "This plugin only installs on Unraid."
+  exit 1
+fi
+source /etc/unraid-version
+if [ "$(printf '%s\n6.12.0\n' "$version" | sort -V | head -n1)" != "6.12.0" ]; then
+  echo "Unraid 6.12.0 or newer is required (found $version)."
+  exit 1
+fi
+</INLINE>
+</FILE>
+
+<FILE Name="&boot;/&txz;" Run="upgradepkg --install-new">
+<URL>&gitURL;/archive/&txz;</URL>
+<MD5>&md5;</MD5>
+</FILE>
+
+<FILE Run="/bin/bash">
+<INLINE>
+# Keep only the version we just installed.
+find &boot; -name "&name;-*.txz" ! -name "&txz;" -delete 2>/dev/null
+
+mkdir -p &boot;
+[ -f &boot;/passphrase ] &amp;&amp; chmod 600 &boot;/passphrase 2>/dev/null
+
+# /usr/local/bin is tmpfs; restore borg if a previous install already fetched it.
+if [ -f &boot;/borg ] &amp;&amp; [ ! -x /usr/local/bin/borg ]; then
+  install -D -m 0755 &boot;/borg /usr/local/bin/borg
+fi
+
+# Reinstate the schedule (a reinstall clears /etc/cron.d).
+&plugdir;/scripts/borg-cron.sh >/dev/null 2>&amp;1
+
+echo ""
+echo "-----------------------------------------------------------"
+echo " &name; &version; installed."
+echo ""
+if [ ! -x /usr/local/bin/borg ]; then
+echo " Next: open Settings -> Utilities -> Borg Backup and press"
+echo " 'Install / update borg' to download the borg binary, then"
+echo " set your repository and passphrase."
+else
+echo " borg: $(/usr/local/bin/borg --version 2>/dev/null)"
+fi
+echo "-----------------------------------------------------------"
+echo ""
+</INLINE>
+</FILE>
+
+<FILE Run="/bin/bash" Method="remove">
+<INLINE>
+rm -f /etc/cron.d/&name;
+/usr/local/sbin/update_cron 2>/dev/null
+removepkg &name; 2>/dev/null
+rm -rf &plugdir;
+rm -f &boot;/&name;-*.txz
+
+echo ""
+echo " &name; removed."
+echo " Settings, the borg binary and your passphrase were left in"
+echo " &boot; - delete that directory yourself if you want them gone."
+echo " Your backup repository was not touched."
+echo ""
+</INLINE>
+</FILE>
+
+</PLUGIN>

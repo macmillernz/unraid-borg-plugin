@@ -1,0 +1,141 @@
+/* borg.css - styling for the Borg Backup plugin pages.
+ *
+ * Unraid ships four themes (white, black, azure, gray) and does not expose a
+ * reliable set of colour variables, so everything here inherits the theme's
+ * text colour and tints with translucent greys. Accent colours are chosen to
+ * stay legible on both light and dark backgrounds.
+ */
+
+.borg-status {
+  margin: 10px 0 16px;
+  padding: 10px 14px;
+  border-left: 4px solid #777;
+  background: rgba(128, 128, 128, .12);
+  border-radius: 3px;
+  line-height: 1.6;
+}
+.borg-status.ok   { border-left-color: #4a934a; }
+.borg-status.warn { border-left-color: #d08b2c; }
+.borg-status.info { border-left-color: #3a7ca5; }
+
+.borg-dot {
+  display: inline-block;
+  width: 9px; height: 9px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: #777;
+  vertical-align: middle;
+}
+.borg-dot.ok   { background: #4a934a; }
+.borg-dot.warn { background: #d08b2c; }
+.borg-dot.info { background: #3a7ca5; }
+
+.borg-last  { margin-top: 6px; font-size: .95em; opacity: .85; }
+.borg-err   { color: #c0392b; }
+.borg-hint  { opacity: .75; font-size: .95em; }
+
+.borg-result          { font-weight: bold; text-transform: capitalize; }
+.borg-result.success  { color: #4a934a; }
+.borg-result.warning  { color: #d08b2c; }
+.borg-result.failed   { color: #c0392b; }
+.borg-result.skipped  { opacity: .7; }
+.borg-result.dry-run  { color: #3a7ca5; }
+
+/* ------------------------------------------------------------- container -- */
+
+.borg-container {
+  border: 1px solid rgba(128, 128, 128, .35);
+  border-radius: 4px;
+  margin-bottom: 8px;
+  background: rgba(128, 128, 128, .06);
+}
+.borg-container.borg-off   { opacity: .55; }
+.borg-container.borg-nomounts { opacity: .5; }
+
+.borg-chead {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  flex-wrap: wrap;
+}
+.borg-cname   { flex: 0 0 auto; cursor: pointer; }
+.borg-cname strong { margin-left: 6px; }
+.borg-image   { flex: 1 1 auto; opacity: .6; font-size: .9em;
+                overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.borg-count   { flex: 0 0 auto; opacity: .8; font-size: .9em; }
+
+.borg-badge {
+  flex: 0 0 auto;
+  font-size: .75em;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: rgba(128, 128, 128, .25);
+}
+.borg-badge.borg-running { background: rgba(74, 147, 74, .3); }
+.borg-badge.borg-exited,
+.borg-badge.borg-created { background: rgba(128, 128, 128, .25); }
+.borg-badge.borg-paused  { background: rgba(208, 139, 44, .3); }
+
+.borg-auto {
+  margin-left: 6px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  font-size: .85em;
+  background: rgba(58, 124, 165, .25);
+  cursor: help;
+}
+
+.borg-toggle { flex: 0 0 auto; }
+
+.borg-cbody { padding: 4px 12px 12px 34px; }
+
+table.borg-mounts { width: 100%; border-collapse: collapse; margin-bottom: 10px; }
+table.borg-mounts th,
+table.borg-mounts td {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid rgba(128, 128, 128, .2);
+  vertical-align: top;
+}
+table.borg-mounts th { font-weight: 600; opacity: .75; font-size: .9em; }
+table.borg-mounts td:first-child,
+table.borg-mounts th:first-child { width: 28px; }
+.borg-dst { opacity: .7; }
+
+.borg-copts dt { opacity: .8; }
+.borg-copts textarea { width: 32em; max-width: 100%; }
+
+/* ------------------------------------------------------- controls, output -- */
+
+.borg-toolbar { margin: 8px 0 14px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.borg-buttons { margin-top: 14px; display: flex; gap: 8px; flex-wrap: wrap; }
+.borg-buttons button.borg-primary,
+.borg-toolbar button.borg-primary { font-weight: bold; }
+.borg-inline { margin-left: 10px; opacity: .85; font-weight: normal; }
+.borg-keep label { margin-right: 14px; }
+.borg-keep input { width: 5em; }
+
+.borg-preview { padding: 2px 6px; background: rgba(128, 128, 128, .15); border-radius: 3px; }
+.borg-preview.borg-bad { background: rgba(192, 57, 43, .2); }
+
+.borg-output {
+  margin-top: 14px;
+  padding: 12px;
+  max-height: 30em;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  background: rgba(128, 128, 128, .12);
+  border-left: 4px solid #777;
+  border-radius: 3px;
+  font-family: Menlo, Consolas, monospace;
+  font-size: .9em;
+  line-height: 1.5;
+}
+.borg-output.borg-ok    { border-left-color: #4a934a; }
+.borg-output.borg-error { border-left-color: #c0392b; }
+.borg-output.borg-plain { border-left-color: #3a7ca5; }
+.borg-log { max-height: 34em; }
