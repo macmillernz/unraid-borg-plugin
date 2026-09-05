@@ -38,7 +38,10 @@ touching the others.
 ## Install
 
 1. In Unraid, go to **Plugins → Install Plugin**.
-2. Paste the raw URL of `plugin/borgbackup.plg` from your fork of this repo.
+2. Paste:
+   ```
+   https://raw.githubusercontent.com/macmillernz/unraid-borg-plugin/main/borgbackup.plg
+   ```
 3. Open **Settings → Utilities → Borg Backup**.
 4. Press **Install / update borg** — the plugin downloads the official
    standalone borg binary to the flash drive and installs it. This is a separate
@@ -135,24 +138,63 @@ it the archives are unreadable, and there is no recovery path. If you use a
 `keyfile` encryption mode, also back up `/root/.config/borg/keys` — the
 passphrase alone is not enough to restore.
 
+## Layout
+
+```
+borgbackup.plg          the plugin descriptor Unraid reads
+package.sh              builds the .txz and stamps version + MD5 into the .plg
+deploy.sh               rsync source/ straight to a test box (dev only)
+source/borgbackup/      everything that ships, rooted at the plugin dir
+```
+
 ## Building
 
 ```bash
-./build.sh              # package archive/*.txz and update plugin/*.plg
 make lint               # PHP (via Docker), shell, JS and XML checks
+make build              # build at the version currently in borgbackup.plg
+make bump               # advance to today's next version, then build
 make tree               # list what ships in the package
 ```
 
-`build.sh` rewrites the `version` and `md5` entities in `plugin/borgbackup.plg`
-to match the package it just built.
+Versions are `year.month.day.n` — bump `n` for each same-day release, reset to
+`1` on a new day. The version lives in exactly one place, `borgbackup.plg`'s
+`<!ENTITY version …>`; `package.sh` reads it rather than inventing its own, so
+the package and the descriptor cannot drift apart. `make bump` advances it for
+you and refuses to reuse a version you may already have released.
 
-Both the manifest and the packaged `slack-desc` point at
-`macmillernz/unraid-borg-plugin`. If you fork this, change the `gitURL` entity in
-the manifest and build with `GHUSER=youraccount ./build.sh`, or the plugin will
-look for its updates in the wrong place.
+`package.sh` writes the MD5 of the package it just built back into the `.plg`.
+A stale MD5 makes Unraid's plugin manager reject the download as corrupt.
+
+## Releasing
+
+The `.txz` is **not** committed — it is `.gitignore`d and distributed as a
+GitHub release asset, so the repo doesn't accumulate binaries.
+
+```bash
+make bump                                   # new version + build
+make release                                # upload the .txz to a release
+git add -A && git commit -m "Release ..." && git push
+```
 
 The repository must be **public** — Unraid fetches the `.plg` and `.txz` over
 plain HTTPS with no credentials, so a private repo cannot be installed from.
+
+If you fork this, change the `pluginURL` and `SRC` entities in the manifest and
+the homepage line in `package.sh`'s `slack-desc`, or the plugin will look for
+its updates in the wrong place.
+
+### Testing on a real box
+
+`deploy.sh` rsyncs `source/borgbackup/` straight into a test server's plugin
+directory, skipping packaging entirely:
+
+```bash
+BORG_UI_HOST=root@tower ./deploy.sh
+```
+
+This does not survive a reboot — `/usr/local/emhttp` is rebuilt from OS packages
+every boot — so it is for the edit/reload cycle, not for a real install. Your
+settings under `/boot/config/plugins/borgbackup` are left alone.
 
 ## Licence
 

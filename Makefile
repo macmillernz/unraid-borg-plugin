@@ -1,22 +1,31 @@
 NAME    := borgbackup
 PHPIMG  := php:8.2-cli-alpine
-SRC     := src/usr/local/emhttp/plugins/$(NAME)
+SRC     := source/$(NAME)
 
-.PHONY: build lint clean tree
+.PHONY: build bump lint clean tree release
 
-build:            ## Package the .txz and update the .plg
-	./build.sh
+build:            ## Build the .txz at the version in the .plg
+	./package.sh
+
+bump:             ## Advance to today's next version, then build
+	./package.sh --bump
 
 lint:             ## Lint PHP (via Docker), shell, JS and XML
 	@docker run --rm -v "$(PWD)":/w -w /w $(PHPIMG) \
-	  sh -c 'find src -name "*.php" -o -name "*.page" | while read f; do php -l "$$f" || exit 1; done'
-	@find src -name '*.sh' -o -path '*/event/*' -type f | while read f; do bash -n "$$f" || exit 1; done
+	  sh -c 'find source -name "*.php" -o -name "*.page" | while read f; do php -l "$$f" || exit 1; done'
+	@find $(SRC) -name '*.sh' -o -path '*/event/*' -type f | while read f; do bash -n "$$f" || exit 1; done
 	@node --check $(SRC)/images/borg.js
-	@xmllint --noout plugin/$(NAME).plg
+	@xmllint --noout $(NAME).plg
 	@echo "lint: ok"
 
+release:          ## Upload the built .txz to a GitHub release for its version
+	@v=$$(grep -o '<!ENTITY version *"[^"]*"' $(NAME).plg | sed -E 's/.*"([^"]*)"/\1/'); \
+	 test -f "$(NAME)-$$v.txz" || { echo "no $(NAME)-$$v.txz - run make build first"; exit 1; }; \
+	 gh release create "$$v" "$(NAME)-$$v.txz" --title "$(NAME) $$v" \
+	   --notes "See CHANGES in $(NAME).plg"
+
 clean:            ## Remove built packages
-	rm -f archive/*.txz
+	rm -f *.txz
 
 tree:             ## Show what ships in the package
-	@find src -type f | sed 's|^src||' | sort
+	@find $(SRC) -type f | sed 's|^$(SRC)||' | sort
