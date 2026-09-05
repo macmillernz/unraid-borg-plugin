@@ -171,20 +171,10 @@ One borg exclude pattern per line, applied to every container. Lines starting wi
 </blockquote>
 
 <div class="title"><span class="left">Containers</span></div>
-<dl>
-  <dt>Back up:</dt>
-  <dd>
-    <select name="CONTAINER_MODE">
-      <option value="all"<?=sel($s['CONTAINER_MODE'],'all')?>>All containers</option>
-      <option value="selected"<?=sel($s['CONTAINER_MODE'],'selected')?>>Only the containers I select</option>
-    </select>
-  </dd>
-</dl>
 <blockquote class="inline_help">
-Choose which containers are included, and which of each container's mounts are
-archived, on the <a href="/Utilities/Borg">Containers</a> tab.
-In <em>All containers</em> mode every container's bind mounts are archived unless you
-have deselected them there.
+Which containers are backed up, and which of each container's mounts, is set on
+the <a href="/Utilities/Borg">Containers</a> tab. Everything is included until you
+untick it there. The settings below are the defaults each container starts from.
 </blockquote>
 
 <dl>
@@ -319,3 +309,30 @@ A run that is still going when the next one is due is skipped rather than run tw
 </form>
 
 <pre id="borg-output" class="borg-output" hidden></pre>
+
+<div class="title"><span class="left">Archives</span></div>
+<div class="borg-toolbar">
+  <button type="button" id="borg-load-archives">Load archives</button>
+  <button type="button" id="borg-repo-info">Repository size</button>
+  <span class="borg-hint">Listing a large or remote repository can take a while.</span>
+</div>
+<div id="borg-archives"></div>
+
+<div class="title"><span class="left">Log</span></div>
+<div class="borg-toolbar">
+  <button type="button" id="borg-load-log">Refresh log</button>
+  <label class="borg-inline"><input type="checkbox" id="borg-follow"> auto-refresh while a backup is running</label>
+</div>
+<pre id="borg-log" class="borg-output borg-log">Press <em>Refresh log</em> to load /var/log/borgbackup.log</pre>
+
+<blockquote class="inline_help">
+To restore, use borg directly from the Unraid terminal &mdash; restoring is
+deliberately not automated here, because overwriting live data is not something a
+web button should make easy:<br>
+<code>borg list ::ARCHIVE</code> to see what is in an archive, then
+<code>borg extract ::ARCHIVE</code> from the directory you want it written into.
+Run <code>export BORG_REPO=...</code> and <code>export BORG_PASSPHRASE=...</code>
+first, or borg will prompt. <code>extract</code> writes relative to the current
+directory, so <code>cd</code> somewhere safe rather than restoring over the
+original path by accident.
+</blockquote>

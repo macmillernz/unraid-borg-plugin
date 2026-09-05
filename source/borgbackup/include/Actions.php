@@ -35,7 +35,6 @@ function borg_field_rules() {
         'ENCRYPTION'      => ['type'=>'enum',  'in'=>['repokey-blake2','repokey','keyfile-blake2','keyfile','none']],
         'ARCHIVE_FORMAT'  => ['type'=>'line',  'max'=>256],
         'COMPRESSION'     => ['type'=>'enum',  'in'=>['zstd,1','zstd,3','zstd,8','lz4','none']],
-        'CONTAINER_MODE'  => ['type'=>'enum',  'in'=>['all','selected']],
         'STOP_CONTAINERS' => ['type'=>'enum',  'in'=>['yes','no']],
         'STOP_TIMEOUT'    => ['type'=>'int',   'min'=>5,  'max'=>600],
         'PRUNE_ENABLED'   => ['type'=>'enum',  'in'=>['yes','no']],

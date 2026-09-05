@@ -19,7 +19,6 @@ require_once '/usr/local/emhttp/plugins/borgbackup/include/BorgLib.php';
 
 $s    = borg_settings();
 $ccfg = borg_container_config();
-$mode = $s['CONTAINER_MODE'] ?? 'all';
 $all  = borg_list_containers();
 
 if (!$all) {
@@ -34,11 +33,10 @@ $records    = [];
 foreach ($all as $name => $c) {
     $sel = $ccfg['containers'][$name] ?? null;
 
-    if ($mode === 'selected') {
-        if (!$sel || empty($sel['enabled'])) continue;
-    } elseif ($sel && isset($sel['enabled']) && !$sel['enabled']) {
-        continue;                                             // explicit opt-out
-    }
+    // A container is backed up unless it has been explicitly unticked. New
+    // containers are therefore included by default: for a backup tool, quietly
+    // missing something is worse than archiving something you did not need.
+    if ($sel && isset($sel['enabled']) && !$sel['enabled']) continue;
 
     // A stored 'mounts' list means the user picked a subset. No such key means
     // "every mount", which is also how a container picks up mounts added after
@@ -49,8 +47,10 @@ foreach ($all as $name => $c) {
             : borg_mount_sources($c);
 
     if (!$paths) {
-        if ($custom || $mode === 'selected')
-            fwrite(STDERR, "Skipping '$name': no backable mounts selected\n");
+        // Worth saying out loud only when the user chose the empty selection;
+        // a container with no bind mounts at all is unremarkable.
+        if ($custom)
+            fwrite(STDERR, "Skipping '$name': no mounts are selected for it\n");
         continue;
     }
 

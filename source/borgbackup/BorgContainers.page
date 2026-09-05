@@ -7,7 +7,6 @@ Tag="docker"
 require_once '/usr/local/emhttp/plugins/borgbackup/include/BorgLib.php';
 
 $s      = borg_settings();
-$mode   = $s['CONTAINER_MODE'] ?? 'all';
 $ccfg   = borg_container_config();
 $all    = borg_list_containers();
 $csrf   = $var['csrf_token'] ?? '';
@@ -28,14 +27,10 @@ $csrf   = $var['csrf_token'] ?? '';
   </div>
 <?php else: ?>
 
-<div class="borg-status <?=$mode === 'selected' ? 'info' : 'ok'?>">
-  <span class="borg-dot <?=$mode === 'selected' ? 'info' : 'ok'?>"></span>
-  <?php if ($mode === 'selected'): ?>
-    Mode: <strong>only selected containers</strong>. Tick a container to include it.
-  <?php else: ?>
-    Mode: <strong>all containers</strong>. Everything is included unless you untick it.
-  <?php endif; ?>
-  Change this on the <a href="/Utilities/Borg">Settings</a> tab.
+<div class="borg-status info">
+  <span class="borg-dot info"></span>
+  Every container is backed up unless you untick it, and a container added later
+  is included automatically. Expand one to choose which of its mounts to archive.
 </div>
 
 <div class="borg-toolbar">
@@ -48,7 +43,8 @@ $csrf   = $var['csrf_token'] ?? '';
 <form id="borg-containers" onsubmit="return false;">
 <?php foreach ($all as $name => $c):
     $sel      = $ccfg['containers'][$name] ?? null;
-    $enabled  = $sel ? !empty($sel['enabled']) : ($mode !== 'selected');
+    // Never configured means included - matches borg-plan.php's opt-out rule.
+    $enabled  = $sel ? !empty($sel['enabled']) : true;
     // No stored 'mounts' key means "all mounts, including any added later".
     $custom   = $sel && array_key_exists('mounts', $sel) && is_array($sel['mounts']);
     $chosen   = $custom ? $sel['mounts'] : array_column($c['mounts'], 'src');

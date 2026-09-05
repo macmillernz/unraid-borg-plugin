@@ -2,8 +2,8 @@
 
 <!--
 Borg Backup - Unraid plugin for scheduled, deduplicated, encrypted backups of
-Docker containers using BorgBackup. Choose all containers or individual ones,
-and pick exactly which of each container's mounts get archived.
+Docker containers using BorgBackup. Every container is backed up unless it is
+unticked, and you pick exactly which of each container's mounts get archived.
 
 Follows the standard community plugin format, see:
 https://wiki.unraid.net/Plugin_Development
@@ -30,13 +30,13 @@ reinstates it on every boot.
 <!-- Version follows year.month.day.n - bump n for each same-day release,
      reset to 1 when the date changes. package.sh reads this value as its
      default (single source of truth) rather than generating its own. -->
-<!ENTITY version   "2026.09.05.1">
+<!ENTITY version   "2026.09.05.2">
 <!ENTITY pluginURL "https://raw.githubusercontent.com/macmillernz/unraid-borg-plugin/main/&name;.plg">
 <!ENTITY SRC       "https://github.com/macmillernz/unraid-borg-plugin/releases/download/&version;/&name;-&version;.txz">
 <!-- MD5 of the .txz package.sh currently produces. package.sh rewrites this
      on every build; if it is stale the plugin manager refuses the download
      as corrupt. -->
-<!ENTITY MD5       "685cc6faaa2d0e8a13071cfdc50ec59c">
+<!ENTITY MD5       "7a5ddfd257d94f49be8da2c01089d5aa">
 <!ENTITY emhttp    "/usr/local/emhttp/plugins/&name;">
 <!ENTITY configdir "/boot/config/plugins/&name;">
 ]>
@@ -51,6 +51,15 @@ reinstates it on every boot.
         support="https://github.com/macmillernz/unraid-borg-plugin/issues">
 
   <CHANGES>
+###2026.09.05.2
+- Fixed the second tab's title rendering as "Archives &amp;amp; Log". Page
+  headers are not XML, so the entity was never decoded.
+- Simplified to two tabs. The archive list, repository size and log moved to
+  the bottom of Settings, under the buttons that produce them.
+- Removed the "all containers / only selected" mode. It duplicated the tick
+  boxes on the Containers tab. A container is now backed up unless you untick
+  it, and one added later is included automatically.
+
 ###2026.09.05.1
 - Initial release. Backs up Docker containers with BorgBackup on a schedule.
 - Settings for repository location (local or ssh://), passphrase, archive

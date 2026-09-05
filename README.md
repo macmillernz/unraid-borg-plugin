@@ -61,13 +61,16 @@ path it is mounted at inside the container. **Preview what will be backed up**
 resolves your settings and selections into the exact list of paths, without
 touching the repository.
 
-**Archives & Log** — list the archives in the repository, check its real on-disk
-size, and read `/var/log/borgbackup.log`, with auto-refresh while a backup runs.
+The Settings tab also carries the archive list, the repository's real on-disk
+size, and `/var/log/borgbackup.log` with auto-refresh while a backup runs — they
+sit below the action buttons, so pressing **Run backup now** and watching the log
+happen in one place.
 
 ## How selection works
 
-- **All containers** mode backs up every container, except ones you untick.
-- **Only selected** mode backs up nothing until you tick containers.
+- **Every container is backed up unless you untick it** on the Containers tab, and
+  a container you add later is included automatically. For a backup tool, quietly
+  missing a new container is worse than archiving one you did not need.
 - A container marked `auto` has all its mounts selected, and will pick up mounts
   you add to it later. Untick even one mount and the selection becomes fixed — so
   revisit the Containers tab after changing a container's volume mappings.
