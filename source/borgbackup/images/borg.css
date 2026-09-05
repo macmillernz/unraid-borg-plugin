@@ -139,3 +139,38 @@ table.borg-mounts th:first-child { width: 28px; }
 .borg-output.borg-error { border-left-color: #c0392b; }
 .borg-output.borg-plain { border-left-color: #3a7ca5; }
 .borg-log { max-height: 34em; }
+
+/* ------------------------------------------------------------------ tabs -- */
+
+/* Our own tab strip rather than emhttp's: this plugin is a single .page, so
+ * the panes are switched client-side. Styled to sit close to Unraid's own tab
+ * look without depending on its markup. */
+
+.borg-tabs {
+  display: flex;
+  gap: 2px;
+  margin: 0 0 16px;
+  border-bottom: 1px solid rgba(128, 128, 128, .35);
+}
+.borg-tab {
+  appearance: none;
+  border: 1px solid transparent;
+  border-bottom: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 1.05em;
+  padding: 8px 18px;
+  margin-bottom: -1px;
+  cursor: pointer;
+  opacity: .65;
+  border-radius: 4px 4px 0 0;
+}
+.borg-tab:hover { opacity: .9; background: rgba(128, 128, 128, .1); }
+.borg-tab.active {
+  opacity: 1;
+  font-weight: bold;
+  background: rgba(128, 128, 128, .12);
+  border-color: rgba(128, 128, 128, .35);
+  border-bottom: 1px solid transparent;
+}

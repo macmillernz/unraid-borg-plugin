@@ -115,7 +115,10 @@ DESC
 
 # ---------------------------------------------------------------- packaging --
 
-OUT="$NAME-$VERSION.txz"
+# name-version-arch-build: Slackware strips the last three fields to identify
+# a package, so without the suffix upgradepkg cannot see one .txz as an upgrade
+# of another and leaves removed files behind. Must match &txz; in the .plg.
+OUT="$NAME-$VERSION-x86_64-1.txz"
 echo "==> Packaging $OUT"
 rm -f "$OUT"
 

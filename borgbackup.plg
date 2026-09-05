@@ -30,13 +30,19 @@ reinstates it on every boot.
 <!-- Version follows year.month.day.n - bump n for each same-day release,
      reset to 1 when the date changes. package.sh reads this value as its
      default (single source of truth) rather than generating its own. -->
-<!ENTITY version   "2026.09.05.2">
+<!ENTITY version   "2026.09.05.3">
+<!-- Slackware identifies a package by stripping the last three hyphenated
+     fields (version, arch, build), so the "x86_64-1" suffix is not decoration:
+     without it upgradepkg cannot tell that a new .txz supersedes the installed
+     one, installs it as a separate package, and leaves behind any file the old
+     version had and the new one does not. -->
+<!ENTITY txz       "&name;-&version;-x86_64-1.txz">
 <!ENTITY pluginURL "https://raw.githubusercontent.com/macmillernz/unraid-borg-plugin/main/&name;.plg">
-<!ENTITY SRC       "https://github.com/macmillernz/unraid-borg-plugin/releases/download/&version;/&name;-&version;.txz">
+<!ENTITY SRC       "https://github.com/macmillernz/unraid-borg-plugin/releases/download/&version;/&txz;">
 <!-- MD5 of the .txz package.sh currently produces. package.sh rewrites this
      on every build; if it is stale the plugin manager refuses the download
      as corrupt. -->
-<!ENTITY MD5       "7a5ddfd257d94f49be8da2c01089d5aa">
+<!ENTITY MD5       "403c68bb34a6dbeabf6c143ffe798921">
 <!ENTITY emhttp    "/usr/local/emhttp/plugins/&name;">
 <!ENTITY configdir "/boot/config/plugins/&name;">
 ]>
@@ -51,6 +57,18 @@ reinstates it on every boot.
         support="https://github.com/macmillernz/unraid-borg-plugin/issues">
 
   <CHANGES>
+###2026.09.05.3
+- Fixed the plugin not appearing under Settings at all. The tabs were built
+  from a Type="xmenu" parent page with Menu="Borg" sub-pages; that produced no
+  menu entry. It is now a single page with the plain Menu="Utilities" header
+  every simple plugin uses, and the Settings/Containers tabs are drawn by the
+  plugin itself.
+- Fixed packages being named without the arch and build fields. Slackware
+  identifies a package by stripping the last three hyphenated fields, so
+  upgradepkg could not tell one version from another and left removed files
+  behind on upgrade. Packages are now name-version-x86_64-1.txz.
+- Renamed one of the two sections both called "Archives".
+
 ###2026.09.05.2
 - Fixed the second tab's title rendering as "Archives &amp;amp; Log". Page
   headers are not XML, so the entity was never decoded.
@@ -86,7 +104,7 @@ fi
     </INLINE>
   </FILE>
 
-  <FILE Name="&configdir;/&name;-&version;.txz" Run="upgradepkg --install-new">
+  <FILE Name="&configdir;/&txz;" Run="upgradepkg --install-new">
     <URL>&SRC;</URL>
     <MD5>&MD5;</MD5>
   </FILE>
@@ -94,7 +112,7 @@ fi
   <FILE Run="/bin/bash">
     <INLINE>
 # Keep only the version we just installed.
-find &configdir; -name "&name;-*.txz" ! -name "&name;-&version;.txz" -delete 2>/dev/null
+find &configdir; -name "&name;-*.txz" ! -name "&txz;" -delete 2>/dev/null
 
 mkdir -p &configdir;
 [ -f &configdir;/passphrase ] &amp;&amp; chmod 600 &configdir;/passphrase 2>/dev/null

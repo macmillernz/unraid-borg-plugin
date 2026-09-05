@@ -1,3 +1,4 @@
 *.txz
 .DS_Store
 *.tmp
+.preview/

@@ -20,8 +20,9 @@ lint:             ## Lint PHP (via Docker), shell, JS and XML
 
 release:          ## Upload the built .txz to a GitHub release for its version
 	@v=$$(grep -o '<!ENTITY version *"[^"]*"' $(NAME).plg | sed -E 's/.*"([^"]*)"/\1/'); \
-	 test -f "$(NAME)-$$v.txz" || { echo "no $(NAME)-$$v.txz - run make build first"; exit 1; }; \
-	 gh release create "$$v" "$(NAME)-$$v.txz" --title "$(NAME) $$v" \
+	 pkg="$(NAME)-$$v-x86_64-1.txz"; \
+	 test -f "$$pkg" || { echo "no $$pkg - run make build first"; exit 1; }; \
+	 gh release create "$$v" "$$pkg" --title "$(NAME) $$v" \
 	   --notes "See CHANGES in $(NAME).plg"
 
 clean:            ## Remove built packages

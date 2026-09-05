@@ -383,7 +383,38 @@
     });
   }
 
-  function init() { initSettings(); initContainers(); initArchives(); }
+  /* ----------------------------------------------------------------- tabs -- */
+
+  /* Both panes are always in the DOM - only visibility changes - so every
+   * handler binds once at load and nothing needs re-wiring on a tab switch. */
+  function initTabs() {
+    var strip = $('.borg-tabs');
+    if (!strip) return;
+
+    function show(name) {
+      $$('.borg-pane').forEach(function (p) {
+        p.hidden = p.id !== 'borg-pane-' + name;
+      });
+      $$('.borg-tab').forEach(function (t) {
+        t.classList.toggle('active', t.dataset.borgTab === name);
+      });
+      try { localStorage.setItem('borg-tab', name); } catch (e) { /* private mode */ }
+    }
+
+    // Anchors inside the help text switch tabs too, not just the strip.
+    document.addEventListener('click', function (e) {
+      var el = e.target.closest('[data-borg-tab]');
+      if (!el) return;
+      e.preventDefault();
+      show(el.dataset.borgTab);
+    });
+
+    var saved = null;
+    try { saved = localStorage.getItem('borg-tab'); } catch (e) { /* ignore */ }
+    if (saved && $('#borg-pane-' + saved)) show(saved);
+  }
+
+  function init() { initTabs(); initSettings(); initContainers(); initArchives(); }
 
   if (document.readyState === 'loading')
     document.addEventListener('DOMContentLoaded', init);
