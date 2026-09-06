@@ -211,6 +211,13 @@ table.borg-mounts th:first-child { width: 28px; }
   padding: 24px;
   background: rgba(0, 0, 0, .55);
 }
+
+/* Required, not belt-and-braces. The `hidden` attribute works through the UA
+ * stylesheet's `[hidden] { display: none }`, which any class selector outranks
+ * - so the `display: flex` above kept this overlay on screen permanently,
+ * covering the page and swallowing every click. Anything given `display` here
+ * needs its own [hidden] rule. */
+.borg-modal[hidden] { display: none; }
 .borg-modal-box {
   display: flex;
   flex-direction: column;

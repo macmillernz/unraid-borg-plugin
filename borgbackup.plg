@@ -30,7 +30,7 @@ reinstates it on every boot.
 <!-- Version follows year.month.day.n - bump n for each same-day release,
      reset to 1 when the date changes. package.sh reads this value as its
      default (single source of truth) rather than generating its own. -->
-<!ENTITY version   "2026.09.06.3">
+<!ENTITY version   "2026.09.06.4">
 <!-- Slackware identifies a package by stripping the last three hyphenated
      fields (version, arch, build), so the "x86_64-1" suffix is not decoration:
      without it upgradepkg cannot tell that a new .txz supersedes the installed
@@ -42,7 +42,7 @@ reinstates it on every boot.
 <!-- MD5 of the .txz package.sh currently produces. package.sh rewrites this
      on every build; if it is stale the plugin manager refuses the download
      as corrupt. -->
-<!ENTITY MD5       "49ce86cd1f69f0dc9a47e2842e24d967">
+<!ENTITY MD5       "7e7648160e03d8461b98e30f77e7e48c">
 <!ENTITY emhttp    "/usr/local/emhttp/plugins/&name;">
 <!ENTITY configdir "/boot/config/plugins/&name;">
 ]>
@@ -57,6 +57,14 @@ reinstates it on every boot.
         support="https://github.com/macmillernz/unraid-borg-plugin/issues">
 
   <CHANGES>
+###2026.09.06.4
+- Fixed the empty "Working" box appearing over the page as soon as Settings was
+  opened, covering everything and swallowing every click. The output window is
+  marked hidden, but its stylesheet set "display: flex", and a class selector
+  outranks the browser's built-in rule for the hidden attribute - so it was
+  never actually hidden. This is also why the install button appeared to do
+  nothing: the invisible backdrop was intercepting the clicks.
+
 ###2026.09.06.3
 - Fixed the install window sitting on "Starting..." forever when the installer
   produced no output. The status check only reported a failure if the log was
