@@ -30,7 +30,7 @@ reinstates it on every boot.
 <!-- Version follows year.month.day.n - bump n for each same-day release,
      reset to 1 when the date changes. package.sh reads this value as its
      default (single source of truth) rather than generating its own. -->
-<!ENTITY version   "2026.09.06.2">
+<!ENTITY version   "2026.09.06.3">
 <!-- Slackware identifies a package by stripping the last three hyphenated
      fields (version, arch, build), so the "x86_64-1" suffix is not decoration:
      without it upgradepkg cannot tell that a new .txz supersedes the installed
@@ -42,7 +42,7 @@ reinstates it on every boot.
 <!-- MD5 of the .txz package.sh currently produces. package.sh rewrites this
      on every build; if it is stale the plugin manager refuses the download
      as corrupt. -->
-<!ENTITY MD5       "f94172ff195fa8eb212212595b640138">
+<!ENTITY MD5       "49ce86cd1f69f0dc9a47e2842e24d967">
 <!ENTITY emhttp    "/usr/local/emhttp/plugins/&name;">
 <!ENTITY configdir "/boot/config/plugins/&name;">
 ]>
@@ -57,6 +57,17 @@ reinstates it on every boot.
         support="https://github.com/macmillernz/unraid-borg-plugin/issues">
 
   <CHANGES>
+###2026.09.06.3
+- Fixed the install window sitting on "Starting..." forever when the installer
+  produced no output. The status check only reported a failure if the log was
+  non-empty, so a process that never started left the window spinning with
+  nothing to show. It now reports that, and the button checks up front that the
+  installer exists, is executable (repairing the mode if not) and actually
+  spawned, naming the problem instead of hanging.
+- The download no longer floods the window with curl's redraw meter. It reports
+  megabytes as they arrive, so a ~26MB download visibly progresses.
+- Falls back to plain nohup where setsid is unavailable.
+
 ###2026.09.06.2
 - Fixed "Install / update borg" hanging forever. The ~26MB download ran inside
   the web request, which outlives the webserver's timeout, so the button spun

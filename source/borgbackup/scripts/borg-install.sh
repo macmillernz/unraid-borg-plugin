@@ -87,14 +87,26 @@ while IFS=$'\t' read -r name url; do
 
   step "Downloading $name"
   say "$url"
-  # --progress-bar writes carriage-return updates that read badly in a log;
-  # a periodic size report is more useful when this is being tailed.
-  if ! curl -fL --connect-timeout 15 --max-time 300 --retry 2 --retry-delay 3 \
-            -o "$TMP" -w '    downloaded %{size_download} bytes in %{time_total}s\n' \
-            "$url"; then
+
+  # curl's own meters (default and --progress-bar) redraw with carriage
+  # returns, which collapse into one unreadable line when this log is shown in
+  # the browser. Run it quietly in the background and report the growing file
+  # size instead, so the window shows steady progress on a ~26MB download.
+  : >"$TMP"
+  curl -fsSL --connect-timeout 15 --max-time 300 --retry 2 --retry-delay 3 \
+       -o "$TMP" "$url" &
+  cpid=$!
+  while kill -0 "$cpid" 2>/dev/null; do
+    sleep 2
+    kill -0 "$cpid" 2>/dev/null || break
+    sz=$(stat -c%s "$TMP" 2>/dev/null || echo 0)
+    say "    $(( sz / 1048576 )) MB so far..."
+  done
+  if ! wait "$cpid"; then
     say "    not available, or the download failed - trying the next build"
     continue
   fi
+  say "    downloaded $(( $(stat -c%s "$TMP" 2>/dev/null || echo 0) / 1048576 )) MB"
 
   size=$(stat -c%s "$TMP" 2>/dev/null || echo 0)
   if [[ $size -lt 1000000 ]]; then

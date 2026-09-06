@@ -203,9 +203,36 @@ case 'install_borg': {
     // back. Spawn it detached and let the UI tail the log instead.
     if (borg_install_running()) reply(false, 'An install is already running.');
 
-    @file_put_contents(BORG_INSTALL_LOG, '');
-    @exec('nohup setsid /usr/local/emhttp/plugins/borgbackup/scripts/borg-install.sh '
-          .'>'.BORG_INSTALL_LOG.' 2>&1 & echo started');
+    $script = '/usr/local/emhttp/plugins/borgbackup/scripts/borg-install.sh';
+    if (!is_file($script)) reply(false, "The installer is missing at $script.");
+    if (!is_executable($script)) @chmod($script, 0755);
+    if (!is_executable($script))
+        reply(false, "$script is not executable, so it cannot be run.");
+
+    // Seed the log rather than emptying it. Everything downstream then treats
+    // "log is empty" as "the process never started", instead of waiting
+    // forever for output that is not coming.
+    $seed = "Starting the borg installer...\n";
+    if (@file_put_contents(BORG_INSTALL_LOG, $seed) === false)
+        reply(false, 'Cannot write to '.BORG_INSTALL_LOG.'.');
+
+    // setsid detaches from the webserver's process group so the download is
+    // not killed with the request; plain nohup will do if it is unavailable.
+    $detach = trim((string)@shell_exec('command -v setsid 2>/dev/null')) !== ''
+            ? 'setsid ' : '';
+    $out = [];
+    @exec('nohup '.$detach.escapeshellarg($script)
+          .' >>'.escapeshellarg(BORG_INSTALL_LOG).' 2>&1 & echo spawned', $out);
+
+    // Give it a moment, then confirm something actually happened. Without this
+    // a failed spawn looks identical to a slow one.
+    usleep(500000);
+    $grew = @filesize(BORG_INSTALL_LOG) > strlen($seed);
+    if (!$grew && !borg_install_running()) {
+        $hint = implode(' ', $out) ?: '(no output from the shell)';
+        reply(false, "The installer did not start.\n\nCommand output: $hint\n\n"
+                    ."Run it by hand to see why:\n  $script");
+    }
 
     reply(true, 'Downloading borg...');
 }
@@ -221,10 +248,16 @@ case 'install_status': {
     if ($done) {
         $rc  = (int)trim(substr($raw, $marker + strlen(BORG_INSTALL_DONE)));
         $raw = substr($raw, 0, $marker);
-    } elseif (!borg_install_running() && $raw !== '') {
-        $done = true;                       // died without reaching its trap
+    } elseif (!borg_install_running()) {
+        // No marker and no process: it died before its exit trap ran. Report
+        // that rather than polling forever - an earlier version required the
+        // log to be non-empty here, so a process that never produced output
+        // left the window spinning indefinitely.
+        $done = true;
         $rc   = -1;
-        $raw .= "\n\nERROR: the installer stopped unexpectedly.";
+        $raw .= "\n\nERROR: the installer stopped without finishing."
+              . ($raw === '' ? " It produced no output at all, which usually"
+                             . " means it could not be started." : '');
     }
 
     reply(true, '', ['log' => rtrim($raw), 'done' => $done, 'rc' => $rc,
