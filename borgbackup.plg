@@ -30,7 +30,7 @@ reinstates it on every boot.
 <!-- Version follows year.month.day.n - bump n for each same-day release,
      reset to 1 when the date changes. package.sh reads this value as its
      default (single source of truth) rather than generating its own. -->
-<!ENTITY version   "2026.09.05.3">
+<!ENTITY version   "2026.09.06.1">
 <!-- Slackware identifies a package by stripping the last three hyphenated
      fields (version, arch, build), so the "x86_64-1" suffix is not decoration:
      without it upgradepkg cannot tell that a new .txz supersedes the installed
@@ -42,7 +42,7 @@ reinstates it on every boot.
 <!-- MD5 of the .txz package.sh currently produces. package.sh rewrites this
      on every build; if it is stale the plugin manager refuses the download
      as corrupt. -->
-<!ENTITY MD5       "403c68bb34a6dbeabf6c143ffe798921">
+<!ENTITY MD5       "88f3234b63d91c287925d23b6202a334">
 <!ENTITY emhttp    "/usr/local/emhttp/plugins/&name;">
 <!ENTITY configdir "/boot/config/plugins/&name;">
 ]>
@@ -57,6 +57,12 @@ reinstates it on every boot.
         support="https://github.com/macmillernz/unraid-borg-plugin/issues">
 
   <CHANGES>
+###2026.09.06.1
+- The action buttons at the bottom of Settings now sit on one row, each sized
+  to its own label. They were inside a definition list, which confined them to
+  the narrow value column and wrapped them onto three rows at theme-imposed
+  fixed widths.
+
 ###2026.09.05.3
 - Fixed the plugin not appearing under Settings at all. The tabs were built
   from a Type="xmenu" parent page with Menu="Borg" sub-pages; that produced no

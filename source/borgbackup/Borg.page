@@ -309,17 +309,16 @@ A run that is still going when the next one is due is skipped rather than run tw
   </dd>
 </dl>
 
-<dl>
-  <dt>&nbsp;</dt>
-  <dd class="borg-buttons">
-    <button type="button" id="borg-save" class="borg-primary">Apply</button>
-    <button type="button" id="borg-test">Test repository</button>
-    <button type="button" id="borg-init">Initialise repository</button>
-    <button type="button" id="borg-install">Install / update borg</button>
-    <button type="button" id="borg-dry">Dry run</button>
-    <button type="button" id="borg-run">Run backup now</button>
-  </dd>
-</dl>
+<!-- Deliberately not in a <dl>: the definition list confines its <dd> to the
+     value column, which squeezed these onto three wrapped rows. -->
+<div class="borg-buttons">
+  <button type="button" id="borg-save" class="borg-primary">Apply</button>
+  <button type="button" id="borg-test">Test repository</button>
+  <button type="button" id="borg-init">Initialise repository</button>
+  <button type="button" id="borg-install">Install / update borg</button>
+  <button type="button" id="borg-dry">Dry run</button>
+  <button type="button" id="borg-run">Run backup now</button>
+</div>
 </form>
 
 <pre id="borg-output" class="borg-output" hidden></pre>
