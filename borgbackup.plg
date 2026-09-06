@@ -30,7 +30,7 @@ tmpfs, so the event/started hook reinstates it on every boot.
 <!-- Version follows year.month.day.n - bump n for each same-day release,
      reset to 1 when the date changes. package.sh reads this value as its
      default (single source of truth) rather than generating its own. -->
-<!ENTITY version   "2026.09.06.5">
+<!ENTITY version   "2026.09.06.6">
 <!-- Slackware identifies a package by stripping the last three hyphenated
      fields (version, arch, build), so the "x86_64-1" suffix is not decoration:
      without it upgradepkg cannot tell that a new .txz supersedes the installed
@@ -42,7 +42,7 @@ tmpfs, so the event/started hook reinstates it on every boot.
 <!-- MD5 of the .txz package.sh currently produces. package.sh rewrites this
      on every build; if it is stale the plugin manager refuses the download
      as corrupt. -->
-<!ENTITY MD5       "506c9b7f2de25d5aceaeea58595f1561">
+<!ENTITY MD5       "e73f6da317d974c8d14e3cd680064e35">
 <!ENTITY emhttp    "/usr/local/emhttp/plugins/&name;">
 <!ENTITY configdir "/boot/config/plugins/&name;">
 
@@ -56,14 +56,22 @@ tmpfs, so the event/started hook reinstates it on every boot.
      build. As its own FILE it is fetched once, kept on the flash drive, and
      only fetched again when borgver below changes.
 
-     glibc231 is the conservative choice: it needs glibc 2.31 or newer, and
-     Unraid 6.12 (this plugin's minimum) is Slackware 15.0 with glibc 2.33, so
-     it runs on every supported release. Newer builds exist but would exclude
-     older servers for no real benefit. The web UI can still fetch a different
-     version afterwards. -->
-<!ENTITY borgver   "1.4.1">
-<!ENTITY borgasset "borg-linux-glibc231">
-<!ENTITY borgmd5   "924d86a8c23dd54939aa9db0b858461a">
+     Pin the newest stable 1.4.x. 2.0 is still beta (2.0.0b24 as of writing) and
+     changes the repository format, so it is not something to point real backups
+     at yet.
+
+     Of that release's builds, glibc231 is the conservative pick: it needs glibc
+     2.31 or newer, and Unraid 6.12 (this plugin's minimum) is Slackware 15.0
+     with glibc 2.33. The glibc235/236 builds would fail to run there - they
+     download fine and then refuse to start.
+
+     Note the asset naming is not stable across releases: 1.4.1 called this
+     borg-linux-glibc231, 1.4.5 calls it borg-linux-glibc231-x86_64. Check the
+     release's actual asset list when bumping, and re-checksum. The web UI can
+     still fetch a different version afterwards. -->
+<!ENTITY borgver   "1.4.5">
+<!ENTITY borgasset "borg-linux-glibc231-x86_64">
+<!ENTITY borgmd5   "d5e2a94758eae8310384ab77dee5e6b4">
 <!ENTITY borgurl   "https://github.com/borgbackup/borg/releases/download/&borgver;/&borgasset;">
 ]>
 
@@ -80,8 +88,11 @@ tmpfs, so the event/started hook reinstates it on every boot.
 ###2026.09.06.5
 - borg now arrives with the plugin. Unraid's own installer downloads it from
   upstream as part of installing the plugin, verified by checksum, so the plugin
-  works straight away and there is no button to press first. Pinned to borg
-  1.4.1, the glibc231 build, which runs on every Unraid this plugin supports.
+  works straight away and there is no button to press first.
+- Pinned to borg 1.4.5, the current stable release, using its glibc231 build so
+  it runs on every Unraid this plugin supports. Earlier releases of this plugin
+  defaulted to 1.4.1 (April 2025), which was four patch releases behind and
+  missing a security fix; that default was never a deliberate choice.
 - The binary is kept on the flash drive under its version number, so plugin
   updates do not re-download 26MB and superseded copies are cleaned up.
 - "Install / update borg" is now just "Update borg", for re-fetching it or

@@ -18,7 +18,7 @@ BOOT=/boot/config/plugins/$PLUGIN
 PLUGIN_DIR=/usr/local/emhttp/plugins/$PLUGIN
 TARGET=$BOOT/borg
 LINK=/usr/local/bin/borg
-VERSION=${1:-1.4.1}
+VERSION=${1:-1.4.5}
 
 # Printed on exit so the UI can stop polling without racing the process table.
 DONE_MARKER=__BORG_INSTALL_DONE__
@@ -67,13 +67,18 @@ if ! CANDIDATES=$(php -q "$PLUGIN_DIR/scripts/borg-assets.php" "$VERSION" "$GLIB
    || [[ -z $CANDIDATES ]]; then
   say "${CANDIDATES:-no response from the GitHub API}"
   say ""
-  say "Falling back to the known asset names for this release series."
+  # Without the API we cannot know this release's naming, so try every scheme
+  # upstream has used. Lowest glibc requirement first: each wrong guess costs a
+  # ~26MB download, and the most compatible build is the likeliest to run.
+  say "Falling back to the asset names upstream has used across releases."
   base="https://github.com/borgbackup/borg/releases/download/$VERSION"
   CANDIDATES=$(printf '%s\t%s/%s\n' \
-    borg-linux-glibc236 "$base" borg-linux-glibc236 \
-    borg-linux-glibc231 "$base" borg-linux-glibc231 \
-    borg-linux-glibc228 "$base" borg-linux-glibc228 \
-    borg-linux64        "$base" borg-linux64)
+    borg-linux-glibc231-x86_64 "$base" borg-linux-glibc231-x86_64 \
+    borg-linux-glibc231        "$base" borg-linux-glibc231 \
+    borg-linux-glibc228        "$base" borg-linux-glibc228 \
+    borg-linux-glibc235-x86_64 "$base" borg-linux-glibc235-x86_64 \
+    borg-linux-glibc236        "$base" borg-linux-glibc236 \
+    borg-linux64               "$base" borg-linux64)
 fi
 
 say "Will try, best first:"

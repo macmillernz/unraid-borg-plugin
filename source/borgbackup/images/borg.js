@@ -96,7 +96,7 @@
       .replace(/\{fqdn\}/g,     location.hostname || 'tower')
       .replace(/\{user\}/g,     'root')
       .replace(/\{pid\}/g,      '12345')
-      .replace(/\{borgversion\}/g, '1.4.1');
+      .replace(/\{borgversion\}/g, '1.4.5');
   }
 
   /* ------------------------------------------------------------- settings -- */
