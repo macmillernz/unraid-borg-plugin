@@ -7,61 +7,125 @@
 # the binary is kept on the flash drive and re-linked at boot by the plugin's
 # `started` event script.
 #
-# Upstream asset names have changed between releases (borg-linux64 through to
-# the glibc-suffixed names), and which one runs depends on the glibc in the
-# running Unraid build - so candidates are tried in turn and each is only
-# accepted once it actually executes.
+# The download is ~26MB, which is far too slow to sit inside a web request -
+# the web UI runs this detached and tails our stdout, so everything here is
+# written to be readable as it happens rather than summarised at the end.
 
 set -u
 
 PLUGIN=borgbackup
 BOOT=/boot/config/plugins/$PLUGIN
+PLUGIN_DIR=/usr/local/emhttp/plugins/$PLUGIN
 TARGET=$BOOT/borg
 LINK=/usr/local/bin/borg
 VERSION=${1:-1.4.1}
-BASE=https://github.com/borgbackup/borg/releases/download/$VERSION
 
-CANDIDATES=(borg-linux-glibc236 borg-linux-glibc231 borg-linuxnew64 borg-linux64)
+# Printed on exit so the UI can stop polling without racing the process table.
+DONE_MARKER=__BORG_INSTALL_DONE__
 
-say() { printf '%s\n' "$*"; }
-die() { printf 'error: %s\n' "$*" >&2; exit 1; }
+say()  { printf '%s\n' "$*"; }
+step() { printf '\n==> %s\n' "$*"; }
+die()  { printf '\nERROR: %s\n' "$*"; exit 1; }
 
-mkdir -p "$BOOT" || die "cannot write to $BOOT"
-TMP=$(mktemp /tmp/borg-dl.XXXXXX) || die "cannot create temp file"
-trap 'rm -f "$TMP"' EXIT
+# One trap for the whole script. rc must be captured first: inside the handler
+# $? becomes the status of whatever the handler last ran.
+cleanup() {
+  local rc=$?
+  rm -f "${TMP:-}"
+  printf '%s %s\n' "$DONE_MARKER" "$rc"
+}
+trap cleanup EXIT
 
-say "Installing borg $VERSION ..."
+# No buffering games needed: the caller redirects stdout to a file, and each
+# echo is its own write, so a tail sees lines as they are produced.
 
-installed=""
-for asset in "${CANDIDATES[@]}"; do
-  say "  trying $asset"
-  if ! curl -fsSL --connect-timeout 15 --max-time 600 -o "$TMP" "$BASE/$asset"; then
-    say "    not available"
-    continue
-  fi
-  chmod +x "$TMP"
-  # A binary built against a newer glibc downloads fine and then fails to run,
-  # so the version call is the real test.
-  if out=$("$TMP" --version 2>&1); then
-    say "    ok: $out"
-    installed=$asset
-    break
-  fi
-  say "    downloaded but will not run here: $out"
-done
+say "Installing borg $VERSION"
+say "Target: $TARGET (kept on the flash drive, re-linked to $LINK at boot)"
 
-[[ -n $installed ]] || die "no usable borg build found for $VERSION (tried: ${CANDIDATES[*]})"
-
-# The running binary cannot be overwritten in place while a backup is using it.
 if pgrep -f '/borg-backup\.sh' >/dev/null 2>&1; then
-  die "a backup is currently running - try again once it finishes"
+  die "a backup is running - the borg binary cannot be replaced while it is in use"
 fi
 
-cp -f "$TMP" "$TARGET.new" || die "cannot write $TARGET.new"
-chmod +x "$TARGET.new"
-mv -f "$TARGET.new" "$TARGET" || die "cannot replace $TARGET"
+mkdir -p "$BOOT" || die "cannot write to $BOOT"
+TMP=$(mktemp /tmp/borg-dl.XXXXXX) || die "cannot create a temp file"
 
+# ------------------------------------------------------------------- glibc --
+
+step "Checking this server's glibc"
+GLIBC=$(ldd --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+$')
+if [[ -n $GLIBC ]]; then
+  say "glibc $GLIBC - builds requiring newer than this will be skipped"
+else
+  say "could not determine glibc version; every Linux build will be tried"
+  GLIBC=0
+fi
+
+# ------------------------------------------------------------- asset lookup --
+
+step "Looking up the downloads published for borg $VERSION"
+if ! CANDIDATES=$(php -q "$PLUGIN_DIR/scripts/borg-assets.php" "$VERSION" "$GLIBC" 2>&1) \
+   || [[ -z $CANDIDATES ]]; then
+  say "${CANDIDATES:-no response from the GitHub API}"
+  say ""
+  say "Falling back to the known asset names for this release series."
+  base="https://github.com/borgbackup/borg/releases/download/$VERSION"
+  CANDIDATES=$(printf '%s\t%s/%s\n' \
+    borg-linux-glibc236 "$base" borg-linux-glibc236 \
+    borg-linux-glibc231 "$base" borg-linux-glibc231 \
+    borg-linux-glibc228 "$base" borg-linux-glibc228 \
+    borg-linux64        "$base" borg-linux64)
+fi
+
+say "Will try, best first:"
+while IFS=$'\t' read -r name _; do [[ -n $name ]] && say "  - $name"; done <<<"$CANDIDATES"
+
+# ----------------------------------------------------------------- download --
+
+installed=""
+while IFS=$'\t' read -r name url; do
+  [[ -n $name && -n $url ]] || continue
+
+  step "Downloading $name"
+  say "$url"
+  # --progress-bar writes carriage-return updates that read badly in a log;
+  # a periodic size report is more useful when this is being tailed.
+  if ! curl -fL --connect-timeout 15 --max-time 300 --retry 2 --retry-delay 3 \
+            -o "$TMP" -w '    downloaded %{size_download} bytes in %{time_total}s\n' \
+            "$url"; then
+    say "    not available, or the download failed - trying the next build"
+    continue
+  fi
+
+  size=$(stat -c%s "$TMP" 2>/dev/null || echo 0)
+  if [[ $size -lt 1000000 ]]; then
+    say "    only $size bytes - that is not a borg binary, trying the next build"
+    continue
+  fi
+
+  chmod +x "$TMP"
+  step "Verifying $name actually runs on this server"
+  if out=$("$TMP" --version 2>&1); then
+    say "    $out"
+    installed=$name
+    break
+  fi
+  say "    downloaded, but it will not run here:"
+  say "    $out"
+done <<<"$CANDIDATES"
+
+[[ -n $installed ]] || die "no usable borg build was found for version $VERSION"
+
+# ------------------------------------------------------------------ install --
+
+step "Installing"
+cp -f "$TMP" "$TARGET.new"      || die "cannot write $TARGET.new"
+chmod +x "$TARGET.new"
+mv -f "$TARGET.new" "$TARGET"   || die "cannot replace $TARGET"
 install -D -m 0755 "$TARGET" "$LINK" || die "cannot install $LINK"
 
-say "Installed: $("$LINK" --version)"
-say "Binary kept at $TARGET and restored to $LINK on every boot."
+say "Installed $installed as $("$LINK" --version)"
+say ""
+say "Kept at $TARGET so it survives a reboot; the array-start hook copies it"
+say "back to $LINK each boot."
+say ""
+say "Done."

@@ -17,7 +17,7 @@ Note for editors: a double hyphen is illegal inside an XML comment, and
 xmllint reacts by dropping the whole DTD, which makes every entity below
 "undefined". Spell out flag names here rather than writing them with dashes.
 
-borg itself is not bundled. It is a ~15MB standalone binary with a
+borg itself is not bundled. It is a ~26MB standalone binary with a
 glibc-dependent build, so the plugin downloads the right one on first use via
 Settings -> Utilities -> Borg Backup -> "Install / update borg", and keeps it
 on the flash drive. /usr/local/bin is tmpfs, so the event/started hook
@@ -30,7 +30,7 @@ reinstates it on every boot.
 <!-- Version follows year.month.day.n - bump n for each same-day release,
      reset to 1 when the date changes. package.sh reads this value as its
      default (single source of truth) rather than generating its own. -->
-<!ENTITY version   "2026.09.06.1">
+<!ENTITY version   "2026.09.06.2">
 <!-- Slackware identifies a package by stripping the last three hyphenated
      fields (version, arch, build), so the "x86_64-1" suffix is not decoration:
      without it upgradepkg cannot tell that a new .txz supersedes the installed
@@ -42,7 +42,7 @@ reinstates it on every boot.
 <!-- MD5 of the .txz package.sh currently produces. package.sh rewrites this
      on every build; if it is stale the plugin manager refuses the download
      as corrupt. -->
-<!ENTITY MD5       "88f3234b63d91c287925d23b6202a334">
+<!ENTITY MD5       "f94172ff195fa8eb212212595b640138">
 <!ENTITY emhttp    "/usr/local/emhttp/plugins/&name;">
 <!ENTITY configdir "/boot/config/plugins/&name;">
 ]>
@@ -57,6 +57,18 @@ reinstates it on every boot.
         support="https://github.com/macmillernz/unraid-borg-plugin/issues">
 
   <CHANGES>
+###2026.09.06.2
+- Fixed "Install / update borg" hanging forever. The ~26MB download ran inside
+  the web request, which outlives the webserver's timeout, so the button spun
+  and no result ever came back. It now runs detached.
+- Added a live output window: the installer's progress and any errors appear as
+  they happen, and the window stays open when it finishes so failures can be
+  read.
+- The build to download is now chosen from the release's real asset list and
+  the server's own glibc version, instead of a hardcoded list of names. Upstream
+  renamed these assets between 1.2, 1.4.1 and 1.4.5, and a build needing a newer
+  glibc than the server has downloads fine and then refuses to run.
+
 ###2026.09.06.1
 - The action buttons at the bottom of Settings now sit on one row, each sized
   to its own label. They were inside a definition list, which confined them to

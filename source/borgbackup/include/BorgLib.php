@@ -14,6 +14,9 @@ define('BORG_PASSFILE', BORG_BOOT.'/passphrase');
 define('BORG_EXCLUDES', BORG_BOOT.'/excludes.txt');
 define('BORG_DEFAULTS', '/usr/local/emhttp/plugins/'.BORG_PLUGIN.'/default.cfg');
 define('BORG_LOG',    '/var/log/'.BORG_PLUGIN.'.log');
+define('BORG_INSTALL_LOG',  '/var/log/'.BORG_PLUGIN.'-install.log');
+// Written by borg-install.sh's exit trap, followed by its exit code.
+define('BORG_INSTALL_DONE', '__BORG_INSTALL_DONE__');
 define('BORG_STATE',  '/var/local/emhttp/'.BORG_PLUGIN.'.state');
 
 /* ---------------------------------------------------------------- config -- */
@@ -200,6 +203,10 @@ function borg_version() {
 
 function borg_is_running() {
     return trim(shell_exec("pgrep -f '/borg-backup\\.sh' 2>/dev/null") ?: '') !== '';
+}
+
+function borg_install_running() {
+    return trim(shell_exec("pgrep -f '/borg-install\\.sh' 2>/dev/null") ?: '') !== '';
 }
 
 /** Last-run summary written by borg-backup.sh. */

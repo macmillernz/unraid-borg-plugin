@@ -29,6 +29,18 @@ function sel($a, $b) { return (string)$a === (string)$b ? ' selected' : ''; }
 <script src="/plugins/borgbackup/images/borg.js"></script>
 <script>const BORG_CSRF = <?=json_encode($csrf)?>;</script>
 
+<!-- Live output for long jobs. Hidden until something runs. -->
+<div class="borg-modal" id="borg-modal" hidden>
+  <div class="borg-modal-box" role="dialog" aria-modal="true" aria-labelledby="borg-modal-title">
+    <div class="borg-modal-head">
+      <span id="borg-modal-title">Working</span>
+      <span class="borg-modal-state" id="borg-modal-state"></span>
+      <button type="button" class="borg-modal-close" id="borg-modal-close" aria-label="Close">&times;</button>
+    </div>
+    <pre class="borg-modal-body" id="borg-modal-body"></pre>
+  </div>
+</div>
+
 <div class="borg-tabs" role="tablist">
   <button type="button" class="borg-tab active" data-borg-tab="settings"   role="tab">Settings</button>
   <button type="button" class="borg-tab"        data-borg-tab="containers" role="tab">Containers</button>

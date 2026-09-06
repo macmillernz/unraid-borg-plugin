@@ -195,3 +195,74 @@ table.borg-mounts th:first-child { width: 28px; }
   border-color: rgba(128, 128, 128, .35);
   border-bottom: 1px solid transparent;
 }
+
+/* --------------------------------------------------------- live output box -- */
+
+/* Shown while a detached job (currently the borg download) runs, tailing its
+ * log. Stays open when the job ends so failures can be read. */
+
+.borg-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(0, 0, 0, .55);
+}
+.borg-modal-box {
+  display: flex;
+  flex-direction: column;
+  width: min(900px, 100%);
+  max-height: 80vh;
+  border-radius: 6px;
+  overflow: hidden;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, .4);
+  /* Fixed dark surface: the box floats above the page in every Unraid theme,
+     so it does not inherit a usable background from one. */
+  background: #1e1e1e;
+  color: #e6e6e6;
+}
+.borg-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #2a2a2a;
+  border-bottom: 1px solid #3a3a3a;
+  font-weight: bold;
+}
+.borg-modal-state {
+  font-weight: normal;
+  font-size: .85em;
+  padding: 2px 9px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, .12);
+}
+.borg-modal-state.running::before { content: '\25CF '; color: #d08b2c; }
+.borg-modal-state.ok      { background: rgba(74, 147, 74, .35); }
+.borg-modal-state.failed  { background: rgba(192, 57, 43, .4); }
+.borg-modal-close {
+  margin-left: auto;
+  background: none;
+  border: none;
+  color: inherit;
+  font-size: 1.5em;
+  line-height: 1;
+  padding: 0 4px;
+  cursor: pointer;
+  opacity: .7;
+}
+.borg-modal-close:hover { opacity: 1; }
+.borg-modal-body {
+  margin: 0;
+  padding: 14px;
+  overflow: auto;
+  white-space: pre-wrap;
+  word-break: break-word;
+  font-family: Menlo, Consolas, monospace;
+  font-size: .88em;
+  line-height: 1.5;
+  background: #1e1e1e;
+}

@@ -198,10 +198,37 @@ case 'init_repo': {
 }
 
 case 'install_borg': {
-    $r = borg_proc(['/usr/local/emhttp/plugins/borgbackup/scripts/borg-install.sh'],
-                   ['PATH'=>'/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin',
-                    'HOME'=>'/root'], 600);
-    reply($r['rc'] === 0, $r['out'], ['version' => borg_version()]);
+    // The binary is ~26MB. Running that inside the request is what made the
+    // button hang: it outlives the webserver's timeout, so nothing ever comes
+    // back. Spawn it detached and let the UI tail the log instead.
+    if (borg_install_running()) reply(false, 'An install is already running.');
+
+    @file_put_contents(BORG_INSTALL_LOG, '');
+    @exec('nohup setsid /usr/local/emhttp/plugins/borgbackup/scripts/borg-install.sh '
+          .'>'.BORG_INSTALL_LOG.' 2>&1 & echo started');
+
+    reply(true, 'Downloading borg...');
+}
+
+case 'install_status': {
+    $raw    = is_file(BORG_INSTALL_LOG) ? (string)@file_get_contents(BORG_INSTALL_LOG) : '';
+    $marker = strpos($raw, BORG_INSTALL_DONE);
+
+    // The marker is authoritative: checking only the process table races the
+    // final writes, and would cut the log off just before the outcome.
+    $done = $marker !== false;
+    $rc   = null;
+    if ($done) {
+        $rc  = (int)trim(substr($raw, $marker + strlen(BORG_INSTALL_DONE)));
+        $raw = substr($raw, 0, $marker);
+    } elseif (!borg_install_running() && $raw !== '') {
+        $done = true;                       // died without reaching its trap
+        $rc   = -1;
+        $raw .= "\n\nERROR: the installer stopped unexpectedly.";
+    }
+
+    reply(true, '', ['log' => rtrim($raw), 'done' => $done, 'rc' => $rc,
+                     'version' => $done ? borg_version() : '']);
 }
 
 case 'run':

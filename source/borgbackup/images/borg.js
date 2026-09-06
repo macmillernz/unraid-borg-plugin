@@ -196,10 +196,13 @@
     });
 
     on('#borg-install', function (e) {
-      busy(e.target, 'Downloading...', function () {
+      busy(e.target, 'Starting...', function () {
         return post('install_borg', {}).then(function (r) {
-          out(r.msg, r.ok ? 'ok' : 'error');
-          if (r.ok) setTimeout(function () { location.reload(); }, 1500);
+          if (!r.ok) { out(r.msg, 'error'); return; }
+          // ~26MB: this runs detached and we watch its log.
+          liveLog('Installing borg', 'install_status', function (ok) {
+            if (ok) setTimeout(function () { location.reload(); }, 2500);
+          });
         });
       });
     });
@@ -383,6 +386,73 @@
     });
   }
 
+  /* ---------------------------------------------------------- live output -- */
+
+  var liveTimer = null;
+
+  /**
+   * Show a job's output while it runs.
+   *
+   * `poll` is an action returning {log, done, rc}. Polling stops on done, and
+   * the box stays open afterwards so the result can actually be read - closing
+   * automatically would hide exactly the errors this exists to surface.
+   */
+  function liveLog(title, poll, onDone) {
+    var box   = $('#borg-modal'),
+        body  = $('#borg-modal-body'),
+        state = $('#borg-modal-state');
+    if (!box) return;
+
+    clearTimeout(liveTimer);
+    $('#borg-modal-title').textContent = title;
+    body.textContent = 'Starting...';
+    state.textContent = 'running';
+    state.className = 'borg-modal-state running';
+    box.hidden = false;
+
+    var misses = 0;
+
+    (function tick() {
+      post(poll, {}).then(function (r) {
+        if (!r.ok) {
+          // A dropped poll is not a failed job; only give up after several.
+          if (++misses > 5) {
+            state.textContent = 'lost contact';
+            state.className = 'borg-modal-state failed';
+            return;
+          }
+          liveTimer = setTimeout(tick, 2000);
+          return;
+        }
+        misses = 0;
+
+        var atBottom = body.scrollHeight - body.scrollTop - body.clientHeight < 40;
+        body.textContent = r.log || 'Starting...';
+        if (atBottom) body.scrollTop = body.scrollHeight;
+
+        if (!r.done) { liveTimer = setTimeout(tick, 1000); return; }
+
+        var ok = r.rc === 0;
+        state.textContent = ok ? 'finished' : 'failed';
+        state.className = 'borg-modal-state ' + (ok ? 'ok' : 'failed');
+        if (onDone) onDone(ok, r);
+      });
+    })();
+  }
+
+  function initModal() {
+    var box = $('#borg-modal');
+    if (!box) return;
+    function close() { clearTimeout(liveTimer); box.hidden = true; }
+
+    $('#borg-modal-close').addEventListener('click', close);
+    // Click the backdrop, but not the box itself.
+    box.addEventListener('click', function (e) { if (e.target === box) close(); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && !box.hidden) close();
+    });
+  }
+
   /* ----------------------------------------------------------------- tabs -- */
 
   /* Both panes are always in the DOM - only visibility changes - so every
@@ -414,7 +484,7 @@
     if (saved && $('#borg-pane-' + saved)) show(saved);
   }
 
-  function init() { initTabs(); initSettings(); initContainers(); initArchives(); }
+  function init() { initModal(); initTabs(); initSettings(); initContainers(); initArchives(); }
 
   if (document.readyState === 'loading')
     document.addEventListener('DOMContentLoaded', init);
