@@ -17,11 +17,11 @@ Note for editors: a double hyphen is illegal inside an XML comment, and
 xmllint reacts by dropping the whole DTD, which makes every entity below
 "undefined". Spell out flag names here rather than writing them with dashes.
 
-borg itself is not bundled. It is a ~26MB standalone binary with a
-glibc-dependent build, so the plugin downloads the right one on first use via
-Settings -> Utilities -> Borg Backup -> "Install / update borg", and keeps it
-on the flash drive. /usr/local/bin is tmpfs, so the event/started hook
-reinstates it on every boot.
+borg itself is a ~26MB standalone binary. It is not inside this plugin's
+package; Unraid downloads it from upstream as its own FILE entry below, at
+install time, so the plugin works immediately and nothing needs fetching from
+the web UI afterwards. It lives on the flash drive, and /usr/local/bin is
+tmpfs, so the event/started hook reinstates it on every boot.
 -->
 
 <!DOCTYPE PLUGIN [
@@ -30,7 +30,7 @@ reinstates it on every boot.
 <!-- Version follows year.month.day.n - bump n for each same-day release,
      reset to 1 when the date changes. package.sh reads this value as its
      default (single source of truth) rather than generating its own. -->
-<!ENTITY version   "2026.09.06.4">
+<!ENTITY version   "2026.09.06.5">
 <!-- Slackware identifies a package by stripping the last three hyphenated
      fields (version, arch, build), so the "x86_64-1" suffix is not decoration:
      without it upgradepkg cannot tell that a new .txz supersedes the installed
@@ -42,9 +42,29 @@ reinstates it on every boot.
 <!-- MD5 of the .txz package.sh currently produces. package.sh rewrites this
      on every build; if it is stale the plugin manager refuses the download
      as corrupt. -->
-<!ENTITY MD5       "7e7648160e03d8461b98e30f77e7e48c">
+<!ENTITY MD5       "506c9b7f2de25d5aceaeea58595f1561">
 <!ENTITY emhttp    "/usr/local/emhttp/plugins/&name;">
 <!ENTITY configdir "/boot/config/plugins/&name;">
+
+<!-- borg itself. Unraid's plugin installer downloads this straight from
+     upstream at install time, so the plugin works the moment it is installed
+     and nothing has to be fetched later from the web UI.
+
+     Why a separate FILE rather than putting the binary inside the .txz: it is
+     ~26MB against the plugin's ~30KB, so bundling would mean re-downloading it
+     for every one-line fix, and would mean redistributing someone else's
+     build. As its own FILE it is fetched once, kept on the flash drive, and
+     only fetched again when borgver below changes.
+
+     glibc231 is the conservative choice: it needs glibc 2.31 or newer, and
+     Unraid 6.12 (this plugin's minimum) is Slackware 15.0 with glibc 2.33, so
+     it runs on every supported release. Newer builds exist but would exclude
+     older servers for no real benefit. The web UI can still fetch a different
+     version afterwards. -->
+<!ENTITY borgver   "1.4.1">
+<!ENTITY borgasset "borg-linux-glibc231">
+<!ENTITY borgmd5   "924d86a8c23dd54939aa9db0b858461a">
+<!ENTITY borgurl   "https://github.com/borgbackup/borg/releases/download/&borgver;/&borgasset;">
 ]>
 
 <PLUGIN name="&name;"
@@ -57,6 +77,16 @@ reinstates it on every boot.
         support="https://github.com/macmillernz/unraid-borg-plugin/issues">
 
   <CHANGES>
+###2026.09.06.5
+- borg now arrives with the plugin. Unraid's own installer downloads it from
+  upstream as part of installing the plugin, verified by checksum, so the plugin
+  works straight away and there is no button to press first. Pinned to borg
+  1.4.1, the glibc231 build, which runs on every Unraid this plugin supports.
+- The binary is kept on the flash drive under its version number, so plugin
+  updates do not re-download 26MB and superseded copies are cleaned up.
+- "Install / update borg" is now just "Update borg", for re-fetching it or
+  moving to a different version.
+
 ###2026.09.06.4
 - Fixed the empty "Working" box appearing over the page as soon as Settings was
   opened, covering everything and swallowing every click. The output window is
@@ -146,6 +176,13 @@ fi
     <MD5>&MD5;</MD5>
   </FILE>
 
+  <!-- The version is in the filename so a borgver bump is a new download
+       rather than a checksum mismatch against a cached file. -->
+  <FILE Name="&configdir;/borg-&borgver;">
+    <URL>&borgurl;</URL>
+    <MD5>&borgmd5;</MD5>
+  </FILE>
+
   <FILE Run="/bin/bash">
     <INLINE>
 # Keep only the version we just installed.
@@ -154,8 +191,17 @@ find &configdir; -name "&name;-*.txz" ! -name "&txz;" -delete 2>/dev/null
 mkdir -p &configdir;
 [ -f &configdir;/passphrase ] &amp;&amp; chmod 600 &configdir;/passphrase 2>/dev/null
 
-# /usr/local/bin is tmpfs; restore borg if a previous install already fetched it.
-if [ -f &configdir;/borg ] &amp;&amp; [ ! -x /usr/local/bin/borg ]; then
+# Put the borg we just downloaded in place. &configdir;/borg is the copy the
+# plugin uses and re-links at every boot, since /usr/local/bin is tmpfs.
+if [ -f &configdir;/borg-&borgver; ]; then
+  chmod 0755 &configdir;/borg-&borgver;
+  cp -f &configdir;/borg-&borgver; &configdir;/borg
+  chmod 0755 &configdir;/borg
+  # Drop superseded borg binaries; each is ~26MB of flash.
+  find &configdir; -maxdepth 1 -name 'borg-[0-9]*' ! -name 'borg-&borgver;' -delete 2>/dev/null
+fi
+
+if [ -f &configdir;/borg ]; then
   install -D -m 0755 &configdir;/borg /usr/local/bin/borg
 fi
 
@@ -166,12 +212,15 @@ echo ""
 echo "-----------------------------------------------------------"
 echo " &name; &version; installed."
 echo ""
-if [ ! -x /usr/local/bin/borg ]; then
-echo " Next: open Settings -> Utilities -> Borg Backup and press"
-echo " 'Install / update borg' to download the borg binary, then"
-echo " set your repository and passphrase."
-else
+if [ -x /usr/local/bin/borg ]; then
 echo " borg: $(/usr/local/bin/borg --version 2>/dev/null)"
+echo ""
+echo " Next: open Settings -> Utilities -> Borg Backup, set your"
+echo " repository location and passphrase, then Initialise repository."
+else
+echo " WARNING: borg was downloaded but will not run on this server."
+echo " Open Settings -> Utilities -> Borg Backup and use 'Update borg'"
+echo " to try a different build."
 fi
 echo "-----------------------------------------------------------"
 echo ""
@@ -188,7 +237,8 @@ rm -f &configdir;/&name;-*.txz
 
 echo ""
 echo " &name; removed."
-echo " Settings, the borg binary and your passphrase were left in"
+echo " Settings, the borg binary (~26MB) and your passphrase were left"
+echo " in"
 echo " &configdir; - delete that directory yourself if you want them gone."
 echo " Your backup repository was not touched."
 echo ""

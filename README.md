@@ -43,12 +43,15 @@ touching the others.
    https://raw.githubusercontent.com/macmillernz/unraid-borg-plugin/main/borgbackup.plg
    ```
 3. Open **Settings → Utilities → Borg Backup**.
-4. Press **Install / update borg** — the plugin downloads the official
-   standalone borg binary to the flash drive and installs it. This is a separate
-   step because borg is not part of Unraid.
-5. Set the repository location and passphrase, press **Apply**, then
+4. Set the repository location and passphrase, press **Apply**, then
    **Initialise repository** to create a new one.
-6. Press **Test repository**, then **Dry run**, before trusting a real schedule.
+5. Press **Test repository**, then **Dry run**, before trusting a real schedule.
+
+borg itself is fetched by Unraid's plugin installer as part of step 2 — it is a
+~26MB standalone binary from the upstream project, kept on the flash drive and
+re-linked into `/usr/local/bin` at every boot. There is no separate install step.
+**Update borg** on the Settings tab re-fetches it, or fetches a different
+version, and shows the output live.
 
 ## Tabs
 

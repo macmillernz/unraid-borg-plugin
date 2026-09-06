@@ -200,7 +200,7 @@
         return post('install_borg', {}).then(function (r) {
           if (!r.ok) { out(r.msg, 'error'); return; }
           // ~26MB: this runs detached and we watch its log.
-          liveLog('Installing borg', 'install_status', function (ok) {
+          liveLog('Updating borg', 'install_status', function (ok) {
             if (ok) setTimeout(function () { location.reload(); }, 2500);
           });
         });

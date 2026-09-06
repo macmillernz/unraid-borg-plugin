@@ -52,8 +52,10 @@ function sel($a, $b) { return (string)$a === (string)$b ? ' selected' : ''; }
   <span class="borg-dot ok"></span><strong><?=borg_h($ver ?: 'borg installed')?></strong>
   &nbsp;&mdash;&nbsp; <?=borg_h($bin)?>
 <?php else: ?>
-  <span class="borg-dot warn"></span><strong>Borg is not installed yet.</strong>
-  Use <em>Install / update borg</em> at the bottom of this page before your first backup.
+  <span class="borg-dot warn"></span><strong>Borg is not available.</strong>
+  It is normally downloaded when the plugin is installed, so this means that
+  download failed or the binary will not run here. <em>Update borg</em> at the
+  bottom of this page will fetch it again and show you what happens.
 <?php endif; ?>
 <?php if ($state['LAST_RUN']): ?>
   <div class="borg-last">Last run: <?=borg_h($state['LAST_RUN'])?> &mdash;
@@ -327,7 +329,7 @@ A run that is still going when the next one is due is skipped rather than run tw
   <button type="button" id="borg-save" class="borg-primary">Apply</button>
   <button type="button" id="borg-test">Test repository</button>
   <button type="button" id="borg-init">Initialise repository</button>
-  <button type="button" id="borg-install">Install / update borg</button>
+  <button type="button" id="borg-install">Update borg</button>
   <button type="button" id="borg-dry">Dry run</button>
   <button type="button" id="borg-run">Run backup now</button>
 </div>
